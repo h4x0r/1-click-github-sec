@@ -123,7 +123,7 @@ jobs:
           echo "✅ All integrity checks passed"
 
       - name: Create Release
-        uses: softprops/action-gh-release@a74c6b72af54cfa997e81df42d94703d6313a2d0 # v2.0.6
+        uses: softprops/action-gh-release@62c96d0c4e8a889135c1f3a25910db8dbe0e85f7 # v2.3.4
         with:
           files: |
             install-security-controls.sh
