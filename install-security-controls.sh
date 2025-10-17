@@ -1216,10 +1216,11 @@ install_python_security_tools() {
       if [[ $DRY_RUN == true ]]; then
         print_status $BLUE "   [DRY RUN] Would install $tool"
       else
-        if $pip_cmd install --user "$tool" 2>/dev/null; then
+        if $pip_cmd install "$tool"; then
           print_status $GREEN "✅ $tool installed"
         else
           print_status $RED "❌ Failed to install $tool"
+          print_status $YELLOW "   Try: $pip_cmd install $tool"
         fi
       fi
     else
