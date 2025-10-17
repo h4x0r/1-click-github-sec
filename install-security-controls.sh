@@ -2366,7 +2366,7 @@ create_deny_toml() {
 [graph]
 targets = [
     "x86_64-unknown-linux-gnu",
-    "x86_64-apple-darwin", 
+    "x86_64-apple-darwin",
     "aarch64-apple-darwin",
     "x86_64-pc-windows-msvc",
 ]
@@ -2374,18 +2374,14 @@ targets = [
 [advisories]
 db-path = "~/.cargo/advisory-db"
 db-urls = ["https://github.com/rustsec/advisory-db"]
-vulnerability = "deny"
 unmaintained = "warn"
-yanked = "deny" 
-notice = "warn"
 
 [licenses]
-unlicensed = "deny"
 allow = [
     "MIT",
     "Apache-2.0",
     "Apache-2.0 WITH LLVM-exception",
-    "BSD-2-Clause", 
+    "BSD-2-Clause",
     "BSD-3-Clause",
     "ISC",
     "Unicode-DFS-2016",
@@ -2394,24 +2390,14 @@ allow = [
     "Zlib",
     "BSL-1.0",
 ]
-deny = [
-    "GPL-2.0",
-    "GPL-3.0",
-    "AGPL-1.0", 
-    "AGPL-3.0",
-    "LGPL-2.0",
-    "LGPL-2.1",
-    "LGPL-3.0",
-]
-copyleft = "deny"
 confidence-threshold = 0.8
 
 [bans]
 multiple-versions = "warn"
 wildcards = "allow"
 deny = [
-    { name = "openssl", reason = "Use rustls instead for pure Rust crypto" },
-    { name = "openssl-sys", reason = "Use rustls instead for pure Rust crypto" },
+    { crate = "openssl", reason = "Use rustls instead for pure Rust crypto" },
+    { crate = "openssl-sys", reason = "Use rustls instead for pure Rust crypto" },
 ]
 
 [sources]
