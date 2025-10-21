@@ -17,7 +17,7 @@
 # Installs security controls for any repository
 # Industry-leading security architecture for multi-language projects
 #
-# Version: 0.4.8
+# Version: 0.4.9
 # Repository: https://github.com/h4x0r/1-click-github-sec
 
 set -euo pipefail
@@ -4314,7 +4314,7 @@ on:
     branches: ["**"]
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -4341,7 +4341,7 @@ jobs:
           set -euo pipefail
           mkdir -p "$HOME/.local/bin"
           export PATH="$HOME/.local/bin:$PATH"
-          
+
           # 1) Install cosign v2.6.0 and verify with SHA256
           COSIGN_VERSION=v2.6.0
           COSIGN_BASE="https://github.com/sigstore/cosign/releases/download/${COSIGN_VERSION}"
@@ -4350,7 +4350,7 @@ jobs:
           curl -fsSLo /tmp/${COSIGN_BIN} "${COSIGN_BASE}/${COSIGN_BIN}"
           echo "${COSIGN_SHA}  /tmp/${COSIGN_BIN}" | sha256sum -c -
           install -m 0755 /tmp/${COSIGN_BIN} "$HOME/.local/bin/cosign"
-          
+
           # 2) Install slsa-verifier v2.7.1 and verify SHA256
           SLSA_VERIFIER_VERSION=v2.7.1
           SLSA_BIN="slsa-verifier-linux-amd64"
@@ -4359,7 +4359,7 @@ jobs:
           curl -fsSLo /tmp/${SLSA_BIN} "${SLSA_BASE}/${SLSA_BIN}"
           echo "${SLSA_SHA}  /tmp/${SLSA_BIN}" | sha256sum -c -
           install -m 0755 /tmp/${SLSA_BIN} "$HOME/.local/bin/slsa-verifier"
-          
+
           # 3) Download pinact v3.4.2 artifacts and verify signature + provenance + checksum
           VERSION=v3.4.2
           BASE="https://github.com/suzuki-shunsuke/pinact/releases/download/${VERSION}"
@@ -4373,7 +4373,7 @@ jobs:
 
           curl -fsSLo /tmp/checksums.txt.sig "${BASE}/pinact_${VERSION#v}_checksums.txt.sig" || \
           curl -fsSLo /tmp/checksums.txt.sig "${BASE}/checksums.txt.sig"
-          
+
           # Sigstore verification of checksums.txt certificate and signature (GitHub OIDC issuer)
           cosign verify-blob \
             --certificate /tmp/checksums.txt.pem \
@@ -4381,7 +4381,7 @@ jobs:
             --certificate-oidc-issuer https://token.actions.githubusercontent.com \
             --certificate-identity-regexp '^https://github.com/suzuki-shunsuke/(pinact|go-release-workflow)/.*' \
             /tmp/checksums.txt
-          
+
           # OpenSSL verification as defense in depth
           # 1) Extract pubkey from certificate: try PEM directly, else decode base64-wrapped cert
           if ! openssl x509 -in /tmp/checksums.txt.pem -pubkey -noout > /tmp/pinact.pub 2>/dev/null; then
@@ -4432,7 +4432,7 @@ jobs:
           else
             echo "Provenance file not found for ${VERSION}; skipping SLSA verification"
           fi
-          
+
           # Extract and install pinact
           tar -xzf "/tmp/${TARBALL}"
           install -m 0755 pinact "$HOME/.local/bin/pinact"
@@ -4442,9 +4442,46 @@ jobs:
         run: |
           pinact --version || true
 
-      - name: Validate pins with pinact
+      - name: Auto-fix unpinned actions with pinact
+        id: pinact_fix
         run: |
-          pinact run --check
+          # Run pinact to auto-pin any unpinned actions
+          pinact run
+
+          # Check if any files were modified
+          if git diff --quiet; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "✅ All actions are already pinned"
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "📌 Auto-pinned actions:"
+            git diff --stat
+          fi
+
+      - name: Commit auto-pinned changes
+        if: steps.pinact_fix.outputs.changed == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add .github/workflows/
+          git commit -m "chore: auto-pin GitHub Actions to SHA
+
+Auto-pinned by pinact v3.4.2 via Pinning Validation workflow
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)"
+
+      - name: Push auto-pinned changes
+        if: steps.pinact_fix.outputs.changed == 'true'
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.ref }}
+
+      - name: Alert about unpinned actions that were fixed
+        if: steps.pinact_fix.outputs.changed == 'true'
+        run: |
+          echo "::warning::Unpinned actions were detected and automatically fixed. Changes have been committed."
+          exit 0
 EOF
 }
 
