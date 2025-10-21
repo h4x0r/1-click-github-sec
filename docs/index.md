@@ -33,7 +33,7 @@ Supports **Rust, Node.js, Python, Go, and generic projects** with 35+ security c
 
 ✅ **Pre-push validation** (35+ security checks in <60s)
 ✅ **CI/CD workflows** (comprehensive security scanning)
-✅ **GitHub security features** (Dependabot, CodeQL, secret scanning)
+✅ **GitHub security features** (Renovate, CodeQL, secret scanning)
 ✅ **Cryptographic verification** (signed commits and releases)
 
 ---

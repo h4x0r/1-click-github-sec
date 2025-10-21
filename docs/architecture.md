@@ -111,7 +111,7 @@ These controls work across all supported languages:
 - **SAST Analysis** - CodeQL + Trivy defense-in-depth security scanning for all supported languages
 - **SHA Pinning Validation** - GitHub Actions pinning is universal
 - **Git Hooks Infrastructure** - Pre-push hook framework
-- **GitHub Security Features** - Dependabot, branch protection, secret scanning
+- **GitHub Security Features** - Renovate, branch protection, secret scanning
 - **CI/CD Pipeline Structure** - Workflow generation, job orchestration
 - **Cryptographic Verification** - SHA256 checksums, Sigstore/gitsign signatures
 - **Commit Signing** - Sigstore/gitsign integration for all projects
@@ -531,59 +531,70 @@ cargo geiger
 
 This creates a **minimize → validate → document** security pipeline that provides comprehensive protection while maintaining developer velocity.
 
-##### **Dependabot Integration - Automated Dependency Management**
+##### **Renovate Integration - Automated Dependency Management**
 
-**Dependabot** serves as the **continuous monitoring and update layer** that complements the local security pipeline:
+**Renovate** serves as the **continuous monitoring and update layer** that complements the local security pipeline:
 
 **🔄 Automated Security Updates:**
-```yaml
-# .github/dependabot.yml (automatically configured)
-version: 2
-updates:
-  - package-ecosystem: "cargo"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
+```json
+// renovate.json (automatically configured)
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "schedule": ["after 9am and before 5pm every weekday"],
+  "automerge": true,
+  "platformAutomerge": true,
+  "stabilityDays": 3,
+  "packageRules": [
+    {
+      "matchDatasources": ["crate"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "automerge": true
+    }
+  ]
+}
 ```
 
-**Integration with Rust Security Pipeline:**
-- **Detection Phase**: Dependabot identifies outdated dependencies with known vulnerabilities
-- **PR Creation**: Creates pull requests with dependency updates
-- **Local Validation**: Updated dependencies are automatically validated by the 4-tool pipeline
-- **Approval Workflow**: Security team can review changes before merge
+**Integration with Security Pipeline:**
+- **Detection Phase**: Renovate scans every 6 hours for dependency updates
+- **Grouping Phase**: Intelligently groups related updates (workspace deps, GitHub Actions)
+- **PR Creation**: Creates pull requests with automerge configuration
+- **Local Validation**: Updated dependencies validated by full security pipeline
+- **Automerge**: Automatically merges after CI passes + 3-day stability period
 
 **Synergy Benefits:**
-1. **Proactive Updates**: Dependabot finds updates → Local tools validate security
-2. **Automated Testing**: Each Dependabot PR triggers full security pipeline
-3. **Risk Assessment**: cargo-geiger analyzes unsafe code changes in updates
+1. **Proactive Updates**: Renovate finds updates → Groups intelligently → Automerges safely
+2. **Automated Testing**: Each Renovate PR triggers full security pipeline
+3. **Intelligent Grouping**: Reduces PR noise by grouping related updates
 4. **Policy Enforcement**: cargo-deny validates updated dependencies against security policies
 5. **Supply Chain Tracking**: cargo-auditable documents update history for forensics
 
 **Complete Update Workflow:**
 ```mermaid
 graph LR
-    A[Dependabot Scans] --> B[Creates PR]
-    B --> C[CI Runs 4-Tool Pipeline]
-    C --> D[cargo-machete: Clean deps]
-    D --> E[cargo-deny: Security audit]
-    E --> F[cargo-geiger: Risk analysis]
-    F --> G[cargo-auditable: Document change]
-    G --> H[Security Review]
-    H --> I[Merge Update]
+    A[Renovate Scans] --> B[Groups Updates]
+    B --> C[Creates PR]
+    C --> D[CI Pipeline]
+    D --> E[cargo-machete: Clean deps]
+    E --> F[cargo-deny: Security audit]
+    F --> G[cargo-geiger: Risk analysis]
+    G --> H[cargo-auditable: Document]
+    H --> I{3-day stable?}
+    I -->|Yes| J[Automerge]
+    I -->|No| K[Manual Review]
 ```
 
 **Why This Integration Works:**
-- **Continuous Monitoring**: Dependabot never sleeps, constantly watching for updates
+- **Continuous Monitoring**: Renovate runs every 6 hours automatically via GitHub Actions
 - **Automated Validation**: Local tools provide immediate security feedback on updates
-- **Human Oversight**: Security team retains control over critical dependency changes
+- **Intelligent Automerge**: Reduces manual review burden for non-breaking changes
 - **Forensic Trail**: Complete audit trail from vulnerability discovery to resolution
 
 **Configuration Benefits:**
-- **Automatic**: Enabled by default with GitHub security features
-- **Customizable**: Update schedules, PR limits, and review requirements configurable
-- **Language-Aware**: Understands Rust ecosystem and Cargo.toml structure
-- **Security-Focused**: Prioritizes security updates over feature updates
+- **Self-Hosted**: Runs via GitHub Actions - no manual app installation required
+- **Customizable**: Update schedules, grouping rules, and automerge policies configurable
+- **Language-Aware**: Understands Rust ecosystem and Cargo workspace structure
+- **Security-Focused**: Immediate automerge for vulnerability alerts
 
 **Node.js - npm audit**:
 - npm Advisory Database

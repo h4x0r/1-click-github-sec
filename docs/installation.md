@@ -103,27 +103,28 @@ Rust projects get the most comprehensive security controls using a **4-tool defe
 - cargo-auditable enables production incident response
 - cargo-geiger adds quantified risk assessment
 
-##### **🤖 Dependabot Integration - Continuous Security Monitoring**
+##### **🤖 Renovate Integration - Continuous Security Monitoring**
 
-The Rust security pipeline is enhanced by **Dependabot integration** for proactive dependency management:
+The security pipeline is enhanced by **Renovate integration** for proactive dependency management:
 
 **Automated Security Update Workflow:**
-1. **🔍 Dependabot Monitoring** - Continuously scans for dependency vulnerabilities
-2. **📝 PR Creation** - Automatically creates pull requests for security updates
-3. **🛡️ Local Validation** - Each Dependabot PR triggers the full 4-tool security pipeline
-4. **👥 Security Review** - Team reviews changes before merge
-5. **📊 Forensic Documentation** - cargo-auditable tracks all update history
+1. **🔍 Renovate Monitoring** - Scans for dependency updates every 6 hours
+2. **📝 PR Creation** - Automatically creates pull requests with intelligent grouping
+3. **🛡️ Local Validation** - Each Renovate PR triggers the full security pipeline
+4. **✅ Automerge** - Automatically merges patch/minor updates after CI passes
+5. **📊 Forensic Documentation** - Complete audit trail of all updates
 
 **Key Benefits:**
-- **Never Miss Updates**: Dependabot monitors 24/7 for new vulnerabilities
-- **Automated Testing**: Every dependency update is validated by local security tools
-- **Risk Assessment**: cargo-geiger analyzes unsafe code changes in updates
-- **Policy Compliance**: cargo-deny ensures updates meet security policies
-- **Audit Trail**: Complete history of security updates for compliance
+- **Continuous Monitoring**: Renovate runs every 6 hours automatically
+- **Intelligent Grouping**: Groups related updates (workspace deps, GitHub Actions) to reduce PR noise
+- **Automerge**: Reduces manual review burden for non-breaking changes
+- **Better Workspace Support**: Properly handles Rust workspace dependencies
+- **Scheduled PRs**: Creates PRs during work hours (9am-5pm Pacific weekdays)
+- **Stability Period**: 3-day wait before automerge ensures package stability
 
-**Configuration**: Automatically enabled with GitHub security features - no manual setup required.
+**Configuration**: Self-hosted via GitHub Actions - no manual app installation required.
 
-This creates the most comprehensive Rust dependency security available anywhere, automatically installed and configured with continuous monitoring.
+This creates the most comprehensive dependency security available anywhere, automatically installed and configured with continuous monitoring.
 
 **📦 Node.js Projects (12-Point Security Audit):**
 - **Comprehensive npm audit** - Standard + enhanced auditing
@@ -207,8 +208,8 @@ Security guides and architecture documentation.
 Comprehensive GitHub repository security configuration (use `--no-github-security` to skip):
 
 #### ✅ **Automatically Configured**
-- **Dependabot Vulnerability Alerts** - Automated dependency scanning
-- **Dependabot Automated Security Fixes** - Automated security update PRs
+- **Renovate Automated Updates** - Self-hosted dependency management with automerge
+- **Vulnerability Alerts** - Automated dependency scanning with immediate automerge
 - **Branch Protection Rules** - Requires PR reviews and status checks
 - **CodeQL Security Scanning** - Adds `.github/workflows/codeql.yml`
 - **Secret Scanning** - Server-side secret detection (auto-enabled for public repos)

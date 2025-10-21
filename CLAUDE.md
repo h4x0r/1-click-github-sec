@@ -716,7 +716,7 @@ Our design philosophy represents formal architectural decisions that guide all d
 **Status**: ✅ Accepted
 **Context**: Zero setup, universal availability, no external dependencies
 **Consequences**:
-- ✅ CodeQL, Dependabot, secret scanning work immediately
+- ✅ CodeQL, Renovate, secret scanning work immediately
 - ✅ No authentication or configuration required
 - ❌ Limited to GitHub's security feature set
 - ❌ Cannot leverage specialized third-party analytics
@@ -797,7 +797,7 @@ Our design philosophy represents formal architectural decisions that guide all d
 - ✅ **Documentation synchronization** - Automated consistency validation
 - ✅ **Functional synchronization** - Dogfooding plus philosophy implementation
 - ✅ **Container security controls** - Trivy vulnerability scanning
-- ✅ **GitHub security features** - Dependabot, CodeQL, secret scanning, branch protection
+- ✅ **GitHub security features** - Renovate, CodeQL, secret scanning, branch protection
 
 ### Short-Term (3-6 months)
 - **Enterprise policy management** - Custom policy templates and enforcement

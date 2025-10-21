@@ -71,7 +71,7 @@ source venv/bin/activate
 🔍 **Compliance checking** - License and policy validation
 
 ### GitHub Security Features (Automated Setup)
-🔐 **Dependabot** - Automated security updates
+🤖 **Renovate** - Automated dependency updates with automerge and intelligent grouping
 🔐 **Secret scanning** - Repository-wide credential detection
 🔐 **Branch protection** - Enforce security policies
 🔐 **Security advisories** - Vulnerability disclosure workflow

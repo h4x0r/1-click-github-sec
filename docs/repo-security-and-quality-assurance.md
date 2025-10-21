@@ -385,9 +385,9 @@ Four specialized workflows for continuous validation:
 #### GitHub Security Features (Enabled)
 - Branch protection: ✅ Enabled (PR reviews required, status checks, admin enforcement)
 - Issues tracking: ✅ Enabled
-- Dependabot vulnerability alerts: ✅ Enabled via API
-- Dependabot automated security fixes: ✅ Enabled via API
-- Dependabot config: ✅ Present (GitHub Actions + Cargo)
+- Vulnerability alerts: ✅ Enabled via API
+- Renovate automated updates: ✅ Self-hosted via GitHub Actions
+- Renovate config: ✅ Present (`renovate.json` with Rust + GitHub Actions)
 - Code scanning: ✅ CodeQL workflow added
 
 #### GitHub Features (Require Manual Web Interface)
@@ -395,11 +395,11 @@ Four specialized workflows for continuous validation:
 - Advanced security: ❌ Not available (public repo)
 
 #### Dependency Management
-- `.github/dependabot.yml` - Config for GitHub Actions + Cargo updates
-- `renovate.json` - Additional dependency management
+- `renovate.json` - Self-hosted dependency management with automerge
+- `.github/workflows/renovate.yml` - Automated Renovate workflow (runs every 6 hours)
 - `deny.toml` - Cargo dependency policies
 - `Cargo.lock` - Lock files for reproducible builds
-- **Workflow**: Dependabot updates → pinactlite auto-pins → Secure updates
+- **Workflow**: Renovate scans → Groups updates → CI validates → Automerges if safe
 
 ---
 
@@ -672,7 +672,7 @@ Repository Security Chain:
 ### Compromised Dependency
 
 1. **Detection** via:
-   - Dependabot alerts
+   - Renovate dependency PRs
    - cargo-deny failures
    - Manual audit
 
@@ -687,7 +687,7 @@ Repository Security Chain:
 
 ### Daily
 - [ ] Check workflow status badges
-- [ ] Review Dependabot alerts
+- [ ] Review Renovate dependency PRs
 - [ ] Monitor issue reports
 
 ### Weekly
