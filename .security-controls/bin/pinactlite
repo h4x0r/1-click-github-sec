@@ -199,9 +199,9 @@ check_images_in_yaml() {
           printf "%s: image not pinned: %s\n", FNAME, img; violations++
         }
       }
-      # Fix: Use working ltrim and match "- uses:" pattern
-      if (l ~ /^- uses: */) {
-        val=l; sub(/^- uses: */, "", val)
+      # Match "uses:" pattern (without dash, as dash is on the step "- name:" line)
+      if (l ~ /^uses: */) {
+        val=l; sub(/^uses: */, "", val)
         # Remove inline comments
         sub(/ *#.*$/, "", val)
         gsub(/^"|"$/, "", val); gsub(/^\047|\047$/, "", val)
@@ -226,7 +226,7 @@ rewrite_actions_in_file() {
   local file="$1" changed=0 tmp
   tmp=$(mktemp)
   while IFS= read -r line; do
-    if [[ $line =~ ^[[:space:]]*-[[:space:]]*uses:[[:space:]]* ]]; then
+    if [[ $line =~ ^[[:space:]]*uses:[[:space:]]* ]]; then
       local raw="${line#*uses:}"
       raw=$(echo "$raw" | sed -E "s/^[[:space:]]+//; s/[\"']+//g")
       if [[ $raw == docker://* ]]; then
@@ -241,7 +241,7 @@ rewrite_actions_in_file() {
             local newline
             # Escape any characters in ref that might confuse sed
             local escaped_ref="${ref//\//\\/}"
-            newline=$(echo "$line" | sed -E "s|([[:space:]]*-[[:space:]]*uses:[[:space:]]*[\\\"\\']?)${or}@[^\\\"'[:space:]]+|\\1${or}@${sha} # ${escaped_ref}|")
+            newline=$(echo "$line" | sed -E "s|([[:space:]]*uses:[[:space:]]*[\\\"\\']?)${or}@[^\\\"'[:space:]]+|\\1${or}@${sha} # ${escaped_ref}|")
             if [[ $newline != "$line" ]]; then
               line="$newline"
               changed=1
