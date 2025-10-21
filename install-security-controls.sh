@@ -732,8 +732,8 @@ SECURITY CONTROLS INSTALLED:
     🔍 Compliance reporting
 
     GitHub Security Features (enabled by default):
-    🔐 Dependabot vulnerability alerts
-    🔐 Dependabot automated security fixes
+    🤖 Renovate configuration (renovate.json)
+    🔐 Vulnerability alerts
     🔐 CodeQL security scanning workflow
     🔐 Branch protection rules
     🔐 Secret scanning (auto-enabled for public repos)
@@ -2856,11 +2856,12 @@ echo
 #   - Complete Software Bill of Materials (SBOM) generation
 #   - SECURITY RATIONALE: Forensic analysis and vulnerability tracking
 #
-# 🤖 CONTINUOUS MONITORING: Dependabot Integration
+# 🤖 CONTINUOUS MONITORING: Renovate Integration
 #   - Automatically scans for dependency vulnerabilities 24/7
-#   - Creates pull requests for security updates
-#   - Each Dependabot PR triggers this complete 4-tool pipeline
+#   - Creates pull requests for security and version updates
+#   - Each Renovate PR triggers this complete 4-tool pipeline
 #   - Provides continuous security monitoring beyond local validation
+#   - Superior to Dependabot: automerge, grouping, better scheduling
 #   - SECURITY RATIONALE: Proactive vulnerability management and automated updates
 #
 # WHY THIS APPROACH WORKS:
@@ -2875,7 +2876,7 @@ echo
 # - cargo-deny provides authoritative security decisions
 # - cargo-auditable enables production incident response
 # - cargo-geiger adds quantified risk assessment
-# - Dependabot provides continuous monitoring and automated updates
+# - Renovate provides continuous monitoring and automated updates (superior to Dependabot)
 # ============================================================================
 
 # 3. Security Audit (cargo-deny preferred - Comprehensive Policy Enforcement)
@@ -5284,12 +5285,20 @@ govulncheck ./...               # Go
 When installed with `--github-security` flag:
 
 ### Automatically Configured
-- **Dependabot Vulnerability Alerts** - Automated dependency scanning
-- **Dependabot Security Fixes** - Automated security update PRs
+- **Renovate Bot** - Automated dependency updates with automerge, grouping, and scheduling
+- **Vulnerability Alerts** - Automated dependency scanning
 - **Branch Protection Rules** - Requires reviews and status checks
 - **CodeQL Security Scanning** - Automated code analysis
 - **Secret Scanning** - Server-side secret detection
 - **Secret Push Protection** - Blocks secrets at GitHub level
+
+**Note**: This project uses Renovate instead of Dependabot for superior dependency management:
+- ✅ Automerge for patch/minor updates after CI passes
+- ✅ Intelligent grouping (GitHub Actions, dependency groups)
+- ✅ Scheduled PRs (weekdays during work hours)
+- ✅ Automatic PR rebasing on conflicts
+- ✅ Vulnerability alerts with immediate automerge
+- ✅ Better monorepo/workspace support
 
 ## 🎯 Language-Specific Security
 
@@ -5445,6 +5454,107 @@ GL_EOF
 # example.com
 AL_EOF
     print_status $GREEN "✅ Created $allowlist_file"
+  fi
+}
+
+install_renovate_config() {
+  print_section "Installing Renovate Configuration"
+
+  if [[ $DRY_RUN == true ]]; then
+    print_status $BLUE "[DRY RUN] Would create renovate.json and workflow"
+    return 0
+  fi
+
+  # Only install if not already present
+  if [[ -f "renovate.json" ]]; then
+    print_status $BLUE "ℹ️  renovate.json already exists, skipping"
+  else
+    # Get repository owner for assignees/reviewers
+    local repo_owner
+    if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+      repo_owner=$(gh repo view --json owner -q '.owner.login' 2>/dev/null || echo "REPO_OWNER")
+    else
+      repo_owner="REPO_OWNER"
+    fi
+
+    # Copy template and replace placeholders
+    if [[ -f ".security-controls/renovate.json.template" ]]; then
+      sed "s/__REPO_OWNER__/$repo_owner/g" ".security-controls/renovate.json.template" > "renovate.json"
+      print_status $GREEN "✅ Created renovate.json from template"
+    else
+      # Fallback: create basic config inline
+      cat >"renovate.json" <<'RENOVATE_EOF'
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticCommits"
+  ],
+  "labels": ["dependencies"],
+  "schedule": ["after 9am and before 5pm on weekday"],
+  "packageRules": [
+    {
+      "matchUpdateTypes": ["patch", "minor"],
+      "automerge": true
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions",
+      "pinDigests": true
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["security"],
+    "automerge": true
+  }
+}
+RENOVATE_EOF
+      print_status $GREEN "✅ Created renovate.json with fallback config"
+    fi
+  fi
+
+  # Install self-hosted Renovate workflow (truly 1-click!)
+  mkdir -p ".github/workflows"
+  if [[ -f ".github/workflows/renovate.yml" ]]; then
+    print_status $BLUE "ℹ️  Renovate workflow already exists, skipping"
+  else
+    cat >".github/workflows/renovate.yml" <<'RENOVATE_WORKFLOW_EOF'
+name: Renovate
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/renovate.yml'
+      - 'renovate.json'
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  renovate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Self-hosted Renovate
+        uses: renovatebot/github-action@696f57d7c1b47aa1097f46915e93ed0bdd25d641 # v40.3.12
+        with:
+          configurationFile: renovate.json
+          token: ${{ secrets.GITHUB_TOKEN }}
+RENOVATE_WORKFLOW_EOF
+    print_status $GREEN "✅ Created self-hosted Renovate workflow"
+    print_status $BLUE "   🎉 Fully automated - no manual app installation required!"
+    print_status $BLUE "   ⚡ Runs every 6 hours automatically"
+    print_status $BLUE "   📝 Uses renovate.json configuration"
   fi
 }
 
@@ -5620,21 +5730,22 @@ install_github_security() {
   repo_name=$(echo "$repo_info" | jq -r '.nameWithOwner')
   print_status $BLUE "🔧 Configuring security for repository: $repo_name"
 
-  # 1. Enable Dependabot Vulnerability Alerts
-  print_status $BLUE "🔍 Enabling Dependabot vulnerability alerts..."
+  # 1. Enable vulnerability alerts (works with both Dependabot and Renovate)
+  print_status $BLUE "🔍 Enabling vulnerability alerts..."
   if gh api "repos/$repo_name/vulnerability-alerts" -X PUT >/dev/null 2>&1; then
-    print_status $GREEN "   ✅ Dependabot vulnerability alerts enabled"
+    print_status $GREEN "   ✅ Vulnerability alerts enabled"
   else
     print_status $YELLOW "   ⚠️  Failed to enable vulnerability alerts (may already be enabled)"
   fi
 
-  # 2. Enable Dependabot Automated Security Fixes
-  print_status $BLUE "🔧 Enabling Dependabot automated security fixes..."
-  if gh api "repos/$repo_name/automated-security-fixes" -X PUT >/dev/null 2>&1; then
-    print_status $GREEN "   ✅ Dependabot automated security fixes enabled"
-  else
-    print_status $YELLOW "   ⚠️  Failed to enable automated security fixes (may already be enabled)"
-  fi
+  # 2. Note: Renovate self-hosted workflow already installed
+  print_status $BLUE "🤖 Renovate self-hosted workflow installed"
+  print_status $GREEN "   ✅ Fully automated - no manual setup required!"
+  print_status $BLUE "   ✨ Superior dependency management vs Dependabot:"
+  print_status $BLUE "      • Automerge for patch/minor updates"
+  print_status $BLUE "      • Intelligent grouping (reduces PR noise)"
+  print_status $BLUE "      • Better monorepo/workspace support"
+  print_status $BLUE "      • Runs every 6 hours automatically"
 
   # 3. Enable Branch Protection (if this is the main branch)
   local current_branch
@@ -5767,8 +5878,9 @@ show_summary() {
 
   if [[ $INSTALL_GITHUB_SECURITY == true ]]; then
     print_status $BLUE "🔐 GitHub Security Features:"
-    print_status $GREEN "   ✅ Dependabot vulnerability alerts enabled"
-    print_status $GREEN "   ✅ Dependabot automated security fixes enabled"
+    print_status $GREEN "   ✅ Vulnerability alerts enabled"
+    print_status $GREEN "   ✅ Renovate self-hosted workflow installed"
+    print_status $BLUE "   🎉 Fully automated - runs every 6 hours!"
     print_status $GREEN "   ✅ CodeQL workflow added"
     print_status $BLUE "   🔧 Branch protection configured (if main/master branch)"
     print_status $YELLOW "   ⚠️  Security advisories require manual setup"
@@ -6335,6 +6447,11 @@ main() {
   # Install default config/state
   safe_execute "install_default_config" \
     "Failed to install default configuration" \
+    $EXIT_CONFIG_ERROR
+
+  # Install Renovate configuration
+  safe_execute "install_renovate_config" \
+    "Failed to install Renovate configuration" \
     $EXIT_CONFIG_ERROR
 
   # Install script-only helpers
