@@ -17,7 +17,7 @@
 # Installs security controls for any repository
 # Industry-leading security architecture for multi-language projects
 #
-# Version: 0.4.7
+# Version: 0.4.8
 # Repository: https://github.com/h4x0r/1-click-github-sec
 
 set -euo pipefail
@@ -5614,7 +5614,7 @@ install_renovate_config() {
   "assignees": ["$repo_owner"],
   "reviewers": ["$repo_owner"],
   "timezone": "America/Los_Angeles",
-  "schedule": ["after 9am and before 5pm on weekday"],
+  "schedule": ["after 9am and before 5pm every weekday"],
   "prConcurrentLimit": 5,
   "prCreation": "immediate",
   "prHourlyLimit": 0,
@@ -5631,8 +5631,7 @@ install_renovate_config() {
     {
       "description": "Pin GitHub Actions to commit SHA with version comment",
       "matchManagers": ["github-actions"],
-      "pinDigests": true,
-      "pinDigestsDisabled": false
+      "pinDigests": true
     }
   ],$manager_configs
   "lockFileMaintenance": {
