@@ -5461,7 +5461,7 @@ install_renovate_config() {
   print_section "Installing Renovate Configuration"
 
   if [[ $DRY_RUN == true ]]; then
-    print_status $BLUE "[DRY RUN] Would create renovate.json and workflow"
+    print_status $BLUE "[DRY RUN] Would create language-specific renovate.json and workflow"
     return 0
   fi
 
@@ -5477,42 +5477,189 @@ install_renovate_config() {
       repo_owner="REPO_OWNER"
     fi
 
-    # Copy template and replace placeholders
-    if [[ -f ".security-controls/renovate.json.template" ]]; then
-      sed "s/__REPO_OWNER__/$repo_owner/g" ".security-controls/renovate.json.template" > "renovate.json"
-      print_status $GREEN "✅ Created renovate.json from template"
-    else
-      # Fallback: create basic config inline
-      cat >"renovate.json" <<'RENOVATE_EOF'
+    # Build language-specific packageRules
+    local package_rules=""
+    local manager_configs=""
+    local detected_langs_str="${DETECTED_LANGUAGES[*]}"
+
+    print_status $BLUE "🔧 Generating language-specific Renovate configuration..."
+    print_status $BLUE "   Detected languages: $detected_langs_str"
+
+    # Rust-specific rules
+    if [[ " ${DETECTED_LANGUAGES[*]} " =~ " rust " ]]; then
+      package_rules+='
+    {
+      "description": "Automerge patch and minor updates for Rust dependencies",
+      "matchDatasources": ["crate"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "automerge": true,
+      "automergeType": "pr",
+      "automergeStrategy": "squash",
+      "platformAutomerge": true
+    },
+    {
+      "description": "Group all Rust workspace dependencies together",
+      "matchDatasources": ["crate"],
+      "groupName": "Rust workspace dependencies"
+    },
+    {
+      "description": "Hold back major Rust dependency updates for review",
+      "matchDatasources": ["crate"],
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true,
+      "automerge": false
+    },'
+      manager_configs+='
+  "cargo": {
+    "enabled": true,
+    "rangeStrategy": "bump"
+  },
+  "rust": {
+    "enabled": true
+  },'
+    fi
+
+    # Python-specific rules
+    if [[ " ${DETECTED_LANGUAGES[*]} " =~ " python " ]]; then
+      package_rules+='
+    {
+      "description": "Automerge Python security tools",
+      "matchManagers": ["pip_requirements", "poetry", "pipenv"],
+      "matchPackageNames": ["bandit", "safety", "pip-audit", "semgrep", "black", "flake8", "pylint"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "automerge": true,
+      "automergeType": "pr",
+      "automergeStrategy": "squash"
+    },
+    {
+      "description": "Group Python dependencies",
+      "matchManagers": ["pip_requirements", "poetry", "pipenv"],
+      "groupName": "Python dependencies"
+    },'
+      manager_configs+='
+  "pip_requirements": {
+    "enabled": true
+  },
+  "poetry": {
+    "enabled": true
+  },
+  "pipenv": {
+    "enabled": true
+  },'
+    fi
+
+    # Node.js/TypeScript-specific rules
+    if [[ " ${DETECTED_LANGUAGES[*]} " =~ " nodejs " ]] || [[ " ${DETECTED_LANGUAGES[*]} " =~ " typescript " ]]; then
+      package_rules+='
+    {
+      "description": "Automerge Node.js dev dependencies",
+      "matchManagers": ["npm", "yarn", "pnpm"],
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "automerge": true,
+      "automergeType": "pr",
+      "automergeStrategy": "squash"
+    },
+    {
+      "description": "Group Node.js dependencies",
+      "matchManagers": ["npm", "yarn", "pnpm"],
+      "groupName": "Node.js dependencies"
+    },'
+      manager_configs+='
+  "npm": {
+    "enabled": true,
+    "rangeStrategy": "bump"
+  },
+  "yarn": {
+    "enabled": true
+  },
+  "pnpm": {
+    "enabled": true
+  },'
+    fi
+
+    # Go-specific rules
+    if [[ " ${DETECTED_LANGUAGES[*]} " =~ " go " ]]; then
+      package_rules+='
+    {
+      "description": "Automerge Go module updates",
+      "matchManagers": ["gomod"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "automerge": true,
+      "automergeType": "pr",
+      "automergeStrategy": "squash"
+    },
+    {
+      "description": "Group Go module dependencies",
+      "matchManagers": ["gomod"],
+      "groupName": "Go modules"
+    },'
+      manager_configs+='
+  "gomod": {
+    "enabled": true
+  },'
+    fi
+
+    # Generate renovate.json with language-specific rules
+    cat >"renovate.json" <<EOF
 {
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "\$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended",
     ":dependencyDashboard",
-    ":semanticCommits"
+    ":semanticCommits",
+    ":gitSignOff"
   ],
   "labels": ["dependencies"],
+  "assignees": ["$repo_owner"],
+  "reviewers": ["$repo_owner"],
+  "timezone": "America/Los_Angeles",
   "schedule": ["after 9am and before 5pm on weekday"],
-  "packageRules": [
+  "prConcurrentLimit": 5,
+  "prCreation": "immediate",
+  "prHourlyLimit": 0,
+  "packageRules": [$package_rules
     {
-      "matchUpdateTypes": ["patch", "minor"],
-      "automerge": true
-    },
-    {
+      "description": "Group all GitHub Actions updates together",
       "matchManagers": ["github-actions"],
       "groupName": "GitHub Actions",
-      "pinDigests": true
+      "automerge": true,
+      "automergeType": "pr",
+      "automergeStrategy": "squash",
+      "platformAutomerge": true
+    },
+    {
+      "description": "Pin GitHub Actions to commit SHA with version comment",
+      "matchManagers": ["github-actions"],
+      "pinDigests": true,
+      "pinDigestsDisabled": false
     }
-  ],
+  ],$manager_configs
+  "lockFileMaintenance": {
+    "enabled": true,
+    "automerge": true,
+    "automergeType": "pr",
+    "schedule": ["before 6am on monday"]
+  },
   "vulnerabilityAlerts": {
     "enabled": true,
     "labels": ["security"],
-    "automerge": true
-  }
+    "automerge": true,
+    "schedule": ["at any time"]
+  },
+  "stabilityDays": 3,
+  "prBodyDefinitions": {
+    "Change": "{{#if displayFrom}}\\\`{{{displayFrom}}}\\\` -> {{else}}**New dependency** {{/if}}\\\`{{{displayTo}}}\\\`"
+  },
+  "commitMessagePrefix": "chore(deps):",
+  "commitMessageAction": "update",
+  "commitMessageTopic": "{{depName}}",
+  "commitMessageExtra": "to {{newVersion}}",
+  "commitBody": "🤖 Generated with 1-Click GitHub Security\\n\\nCo-Authored-By: Security Controls <noreply@securityronin.com>"
 }
-RENOVATE_EOF
-      print_status $GREEN "✅ Created renovate.json with fallback config"
-    fi
+EOF
+    print_status $GREEN "✅ Created language-specific renovate.json"
+    print_status $BLUE "   Languages configured: $detected_langs_str"
   fi
 
   # Install self-hosted Renovate workflow (truly 1-click!)
