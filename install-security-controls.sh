@@ -17,7 +17,7 @@
 # Installs security controls for any repository
 # Industry-leading security architecture for multi-language projects
 #
-# Version: 0.4.9
+# Version: 0.6.11
 # Repository: https://github.com/h4x0r/1-click-github-sec
 
 set -euo pipefail
