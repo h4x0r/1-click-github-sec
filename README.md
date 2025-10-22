@@ -70,7 +70,8 @@ source venv/bin/activate
 **Learn More:**
 - [SLSA Framework](https://slsa.dev/) - Industry-standard supply chain security
 - [slsa-verifier Tool](https://github.com/slsa-framework/slsa-verifier) - Verification utility
-- [Our Implementation](https://h4x0r.github.io/1-click-github-sec/slsa-provenance) - Technical details
+- [Cryptographic Verification](https://h4x0r.github.io/1-click-github-sec/cryptographic-verification) - How to verify releases
+- [SLSA Migration](https://h4x0r.github.io/1-click-github-sec/slsa-provenance-migration) - Technical implementation details
 
 ---
 
