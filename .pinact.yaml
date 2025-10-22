@@ -2,7 +2,7 @@
 # Controls SHA pinning validation for GitHub Actions workflows
 # Documentation: https://github.com/suzuki-shunsuke/pinact
 
-schema_version: v1
+version: 3
 
 # GitHub requires reusable workflows to use semantic version tags, not commit SHAs.
 # This is a platform requirement, not a security weakness.
@@ -12,7 +12,6 @@ schema_version: v1
 # commit SHA pinning - it's actually MORE secure than pinning.
 #
 # Therefore, we exclude the SLSA reusable workflow call from pinact validation.
-excludes:
-  - workflow_path: .github/workflows/release.yml
-    job_name: provenance
-    step_name: "*"  # Entire job uses reusable workflow (GitHub requirement)
+ignore_actions:
+  - name: slsa-framework/slsa-github-generator/\.github/workflows/generator_generic_slsa3\.yml
+    ref: .*
