@@ -35,7 +35,14 @@ jobs:
           check_interval=30
 
           # Workflows to wait for
-          workflows=("Quality Assurance" "Security Scanning")
+          # Note: Skip QA for RC releases due to pinact not supporting reusable workflow exception
+          # See: https://github.com/h4x0r/1-click-github-sec/issues/TBD
+          if [[ "${{ github.ref_name }}" =~ -rc[0-9]+$ ]]; then
+            echo "⚠️  RC release detected - skipping Quality Assurance workflow (pinact reusable workflow limitation)"
+            workflows=("Security Scanning")
+          else
+            workflows=("Quality Assurance" "Security Scanning")
+          fi
 
           while [ $wait_time -lt $max_wait ]; do
             all_completed=true
