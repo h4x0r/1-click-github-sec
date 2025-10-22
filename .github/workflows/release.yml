@@ -267,20 +267,13 @@ jobs:
           name: release-artifacts
           path: ./artifacts
 
-      - name: Download SLSA provenance
-        uses: actions/download-artifact@b14cf4c92620c250e1c074ab0a5800e37df86765 # v4.2.0
-        with:
-          name: ${{ needs.provenance.outputs.provenance-name }}
-          path: ./provenance
-
       - name: Display downloaded artifacts
         run: |
           echo "📦 Build artifacts:"
           ls -lah ./artifacts/
 
           echo ""
-          echo "🔐 SLSA provenance:"
-          ls -lah ./provenance/
+          echo "Note: SLSA provenance (*.intoto.jsonl) already uploaded by SLSA generator workflow"
 
       - name: Create Release
         uses: softprops/action-gh-release@a74c6b72af54cfa997e81df42d94703d6313a2d0 # v2.0.6
@@ -294,7 +287,6 @@ jobs:
             ./artifacts/release-hashes-*.txt
             ./artifacts/release-hashes-*.json
             ./artifacts/release-hashes-*.yaml
-            ./provenance/*.intoto.jsonl
           generate_release_notes: true
           name: "1-Click GitHub Security ${{ github.ref_name }}"
           body: |
