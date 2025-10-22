@@ -235,9 +235,8 @@ jobs:
       actions: read     # Detect GitHub Actions environment
       id-token: write   # Sign provenance with Sigstore
       contents: write   # Upload to release
-    # pinact-disable: reusable workflows MUST use semantic version tags (GitHub requirement)
     # See: https://docs.github.com/en/actions/using-workflows/reusing-workflows#calling-a-reusable-workflow
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0 # pinact-disable: reusable workflows MUST use semantic version tags (GitHub requirement)
     with:
       base64-subjects: "${{ needs.build.outputs.hashes }}"
       upload-assets: true  # Auto-upload provenance to release
