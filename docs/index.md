@@ -13,12 +13,16 @@
 **Deploy Security Controls to Any Project in One Command**
 
 ```bash
-# Download installer and checksum
-curl -O https://github.com/h4x0r/1-click-github-sec/releases/download/v0.4.12/install-security-controls.sh
-curl -O https://github.com/h4x0r/1-click-github-sec/releases/download/v0.4.12/checksums.txt
+# Download installer and SLSA provenance
+curl -LO https://github.com/h4x0r/1-click-github-sec/releases/download/v0.6.11/install-security-controls.sh
+curl -LO https://github.com/h4x0r/1-click-github-sec/releases/download/v0.6.11/multiple.intoto.jsonl
 
-# VERIFY checksum before execution (STRONGLY RECOMMENDED - critical security practice)
-sha256sum -c checksums.txt --ignore-missing
+# VERIFY with SLSA provenance (cryptographic proof of authenticity)
+# Install slsa-verifier: https://github.com/slsa-framework/slsa-verifier#installation
+slsa-verifier verify-artifact \
+  --provenance-path multiple.intoto.jsonl \
+  --source-uri github.com/h4x0r/1-click-github-sec \
+  install-security-controls.sh
 
 # Run installer
 chmod +x install-security-controls.sh

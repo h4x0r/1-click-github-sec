@@ -1,12 +1,12 @@
-# SLSA Provenance Migration Plan
+# SLSA Provenance Migration
 
 ## Overview
 
 **Goal**: Migrate from manual hash registry system to SLSA Level 3 provenance for supply chain security.
 
-**Status**: Planning Phase
-**Target**: SLSA Build Level 3
-**Timeline**: 2-3 sprints
+**Status**: ✅ **COMPLETED** (v0.6.11 - October 2025)
+**Achievement**: SLSA Build Level 3
+**Migration Time**: 2 sprints
 
 ## Why SLSA Provenance Instead of Hash Registries?
 
@@ -45,7 +45,7 @@ Safe-upgrade downloads provenance → Verify signature → Extract hashes → Co
 
 ### What SLSA Provenance Gives Us
 
-**Example Provenance File** (`install-security-controls.sh.intoto.jsonl`):
+**Example Provenance File** (`multiple.intoto.jsonl`):
 ```json
 {
   "_type": "https://in-toto.io/Statement/v1",

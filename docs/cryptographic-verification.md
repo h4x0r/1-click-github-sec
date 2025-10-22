@@ -29,24 +29,36 @@ git tag -v v0.6.5
 git log --show-signature -1 v0.6.5
 ```
 
-### Verify Installation Files
+### Verify Installation Files (SLSA Build Level 3)
 ```bash
-# Download checksums and installer
-curl -sL https://github.com/h4x0r/1-click-github-sec/releases/latest/download/checksums.txt -o checksums.txt
-curl -sL https://github.com/h4x0r/1-click-github-sec/releases/latest/download/install-security-controls.sh -o install-security-controls.sh
+# Download installer and SLSA provenance
+curl -LO https://github.com/h4x0r/1-click-github-sec/releases/download/v0.6.11/install-security-controls.sh
+curl -LO https://github.com/h4x0r/1-click-github-sec/releases/download/v0.6.11/multiple.intoto.jsonl
 
-# VERIFY checksum before execution (STRONGLY RECOMMENDED - critical security practice)
-sha256sum -c checksums.txt
+# VERIFY with SLSA provenance (cryptographic proof of authenticity)
+# Install slsa-verifier: https://github.com/slsa-framework/slsa-verifier#installation
+slsa-verifier verify-artifact \
+  --provenance-path multiple.intoto.jsonl \
+  --source-uri github.com/h4x0r/1-click-github-sec \
+  install-security-controls.sh
 
-# Verify release signature
-git tag -v v0.6.5
+# Verify release tag signature
+git tag -v v0.6.11
 ```
 
 ---
 
 ## 🔐 What Verification Checks
 
-### gitsign (Sigstore) Verification
+### SLSA Provenance Verification (Release Artifacts)
+✅ **Build provenance** - Verifiable who, when, and how artifacts were built
+✅ **Cryptographic attestation** - Signed with Sigstore (keyless signing)
+✅ **Supply chain transparency** - Complete build context and materials
+✅ **Artifact integrity** - SHA256 hashes recorded in provenance
+✅ **SLSA Build Level 3** - Industry standard compliance
+✅ **Public audit trail** - Recorded in Rekor transparency log
+
+### gitsign (Sigstore) Verification (Commits & Tags)
 ✅ **Certificate validity** - Was certificate valid at signing time?
 ✅ **Identity binding** - Does signer identity match expected email?
 ✅ **Transparency logging** - Is signature recorded in Rekor ledger?
@@ -126,8 +138,8 @@ git log --format="%GG" HEAD
 
 When verifying releases or commits:
 
-- [ ] **File checksum verified** (`sha256sum -c checksums.txt`)
-- [ ] **Tag signature verified** (`git tag -v v0.6.5`)
+- [ ] **SLSA provenance verified** (`slsa-verifier verify-artifact`)
+- [ ] **Tag signature verified** (`git tag -v v0.6.11`)
 - [ ] **Rekor entry confirmed** (shows "Validated Rekor entry: true")
 - [ ] **Identity matches expected maintainer** (albert@securityronin.com)
 - [ ] **Timestamp reasonable** (not from suspicious time)

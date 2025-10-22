@@ -13,17 +13,21 @@ This installer adds security controls to **YOUR** multi-language project. It pro
 
 ---
 
-## 🚀 Quick Start (Verified Installation)
+## 🚀 Quick Start (Cryptographically Verified Installation)
 
-**Never run unverified installers!** Always check the SHA256 checksum:
+**Never run unverified installers!** All releases include SLSA Build Level 3 provenance for cryptographic verification:
 
 ```bash
-# Download installer and checksum
-curl -O https://raw.githubusercontent.com/h4x0r/1-click-github-sec/main/install-security-controls.sh
-curl -O https://raw.githubusercontent.com/h4x0r/1-click-github-sec/main/install-security-controls.sh.sha256
+# Download installer and SLSA provenance
+curl -LO https://github.com/h4x0r/1-click-github-sec/releases/download/v0.6.11/install-security-controls.sh
+curl -LO https://github.com/h4x0r/1-click-github-sec/releases/download/v0.6.11/multiple.intoto.jsonl
 
-# VERIFY CHECKSUM (Critical!)
-sha256sum -c install-security-controls.sh.sha256
+# VERIFY with SLSA provenance (cryptographic proof of authenticity)
+# Install slsa-verifier: https://github.com/slsa-framework/slsa-verifier#installation
+slsa-verifier verify-artifact \
+  --provenance-path multiple.intoto.jsonl \
+  --source-uri github.com/h4x0r/1-click-github-sec \
+  install-security-controls.sh
 
 # Run installer (includes GitHub security by default)
 chmod +x install-security-controls.sh
@@ -32,6 +36,12 @@ chmod +x install-security-controls.sh
 # Optional: Skip GitHub security features
 ./install-security-controls.sh --no-github-security
 ```
+
+**Why SLSA provenance?** Cryptographic verification provides stronger guarantees than checksums:
+- ✅ **Signed attestation** - Sigstore cryptographic signing (keyless)
+- ✅ **Build provenance** - Verifiable who, when, how artifacts were built
+- ✅ **Supply chain transparency** - Complete build context and materials
+- ✅ **Industry standard** - SLSA Build Level 3 compliance
 
 ---
 
@@ -422,12 +432,17 @@ git push --no-verify
 
 ### Manual Update
 ```bash
-# Download latest installer
-curl -O https://raw.githubusercontent.com/h4x0r/1-click-github-sec/main/install-security-controls.sh
-curl -O https://raw.githubusercontent.com/h4x0r/1-click-github-sec/main/install-security-controls.sh.sha256
+# Download latest release with SLSA provenance
+curl -LO https://github.com/h4x0r/1-click-github-sec/releases/download/v0.6.11/install-security-controls.sh
+curl -LO https://github.com/h4x0r/1-click-github-sec/releases/download/v0.6.11/multiple.intoto.jsonl
 
-# Verify and run
-sha256sum -c install-security-controls.sh.sha256
+# Verify with SLSA provenance
+slsa-verifier verify-artifact \
+  --provenance-path multiple.intoto.jsonl \
+  --source-uri github.com/h4x0r/1-click-github-sec \
+  install-security-controls.sh
+
+# Run installer
 chmod +x install-security-controls.sh
 ./install-security-controls.sh --force
 ```
