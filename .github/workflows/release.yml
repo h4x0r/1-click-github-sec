@@ -6,13 +6,18 @@ on:
       - 'v*'
 
 permissions:
-  contents: write
-  actions: read  # Required to check Quality Assurance workflow status
+  contents: write  # For release uploads
+  actions: read    # For provenance generation
+  id-token: write  # For Sigstore signing
 
 jobs:
-  release:
-    name: Create Release with Artifacts
+  # Step 1: Wait for security validation and build artifacts
+  build:
+    name: Build Release Artifacts
     runs-on: ubuntu-latest
+    outputs:
+      hashes: ${{ steps.hash.outputs.hashes }}
+      version: ${{ steps.version.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -91,50 +96,105 @@ jobs:
           fi
           echo "✅ Valid semver tag: ${{ github.ref_name }}"
 
-      - name: Generate release artifacts
+      - name: Extract version
+        id: version
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "📦 Release version: $VERSION"
+
+      - name: Prepare release artifacts
         run: |
           set -euo pipefail
 
-          # Generate checksums for installer scripts
+          echo "📦 Preparing release artifacts..."
+
+          # Ensure all managed files are present
+          ls -la install-security-controls.sh
+          ls -la uninstall-security-controls.sh
+          ls -la yubikey-gitsign-toggle.sh
+          ls -la .security-controls/bin/pinactlite
+          ls -la .security-controls/bin/gitleakslite
+
+          echo "✅ All artifacts present"
+
+      - name: Generate artifact hashes for SLSA provenance
+        id: hash
+        run: |
+          set -euo pipefail
+
+          echo "🔐 Generating SHA256 hashes for SLSA provenance..."
+
+          # Generate SHA256 hashes for all managed files
+          # Format required by slsa-github-generator: "hash filename"
+          # Base64 encode for passing through GitHub Actions
+          hashes=$(sha256sum \
+            install-security-controls.sh \
+            uninstall-security-controls.sh \
+            yubikey-gitsign-toggle.sh \
+            .security-controls/bin/pinactlite \
+            .security-controls/bin/gitleakslite \
+            | base64 -w0)
+
+          echo "hashes=$hashes" >> "$GITHUB_OUTPUT"
+
+          # Display for verification
+          echo ""
+          echo "📋 Generated hashes for SLSA provenance:"
+          sha256sum \
+            install-security-controls.sh \
+            uninstall-security-controls.sh \
+            yubikey-gitsign-toggle.sh \
+            .security-controls/bin/pinactlite \
+            .security-controls/bin/gitleakslite
+
+      - name: Generate legacy checksums
+        run: |
+          set -euo pipefail
+
+          echo "📝 Generating legacy checksums (backward compatibility)..."
+
+          # Generate individual checksums
           sha256sum install-security-controls.sh > install-security-controls.sh.sha256
           sha256sum uninstall-security-controls.sh > uninstall-security-controls.sh.sha256
+          sha256sum yubikey-gitsign-toggle.sh > yubikey-gitsign-toggle.sh.sha256
 
           # Create combined checksums file
           cat > checksums.txt <<EOF
           # 1-Click GitHub Security ${{ github.ref_name }} - Release Checksums
+          # SLSA Build Level 3 Provenance Available: *.intoto.jsonl
           # Verify with: sha256sum -c checksums.txt
 
           EOF
           cat install-security-controls.sh.sha256 >> checksums.txt
           cat uninstall-security-controls.sh.sha256 >> checksums.txt
+          cat yubikey-gitsign-toggle.sh.sha256 >> checksums.txt
 
-          # Display checksums for verification
-          echo "📋 Generated checksums:"
+          echo ""
+          echo "📋 Legacy checksums (for backward compatibility):"
           cat checksums.txt
 
-      - name: Generate hash registry for safe-upgrade
+      - name: Generate hash registry (legacy - will be deprecated)
         run: |
           set -euo pipefail
 
-          # Extract version from tag (remove 'v' prefix)
-          VERSION="${{ github.ref_name }}"
-          VERSION="${VERSION#v}"
+          VERSION="${{ steps.version.outputs.version }}"
 
-          echo "🔐 Generating hash registry for version $VERSION"
+          echo "⚠️  Generating legacy hash registry (will be deprecated in favor of SLSA provenance)"
+          echo "🔐 Hash registry for version $VERSION"
 
-          # Generate hash registry in all formats
+          # Generate hash registry in all formats (for backward compatibility)
           ./scripts/generate-release-hashes.sh "$VERSION" --format bash
           ./scripts/generate-release-hashes.sh "$VERSION" --format json
           ./scripts/generate-release-hashes.sh "$VERSION" --format yaml
 
-          # Display generated registries
           echo ""
           echo "📋 Generated hash registries:"
-          ls -lh release-hashes-*.{txt,json,yaml}
+          ls -lh release-hashes-*.{txt,json,yaml} 2>/dev/null || true
 
           echo ""
-          echo "📄 Bash format (for embedding in safe-upgrade.sh):"
-          cat "release-hashes-${VERSION}.txt"
+          echo "💡 Note: These will be replaced by SLSA provenance in future releases"
 
       - name: Validate installer integrity
         run: |
@@ -143,25 +203,119 @@ jobs:
           # Verify checksums
           sha256sum -c install-security-controls.sh.sha256
           sha256sum -c uninstall-security-controls.sh.sha256
+          sha256sum -c yubikey-gitsign-toggle.sh.sha256
 
           echo "✅ All integrity checks passed"
+
+      - name: Upload artifacts for provenance
+        uses: actions/upload-artifact@ea165f8792c99f61f6e3e07b84e6e1c55f68d44e # v4.6.0
+        with:
+          name: release-artifacts
+          path: |
+            install-security-controls.sh
+            install-security-controls.sh.sha256
+            uninstall-security-controls.sh
+            uninstall-security-controls.sh.sha256
+            yubikey-gitsign-toggle.sh
+            yubikey-gitsign-toggle.sh.sha256
+            .security-controls/bin/pinactlite
+            .security-controls/bin/gitleakslite
+            checksums.txt
+            release-hashes-*.txt
+            release-hashes-*.json
+            release-hashes-*.yaml
+          if-no-files-found: error
+          retention-days: 5
+
+  # Step 2: Generate SLSA Build Level 3 provenance (cryptographically signed)
+  provenance:
+    name: Generate SLSA Provenance
+    needs: [build]
+    permissions:
+      actions: read     # Detect GitHub Actions environment
+      id-token: write   # Sign provenance with Sigstore
+      contents: write   # Upload to release
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    with:
+      base64-subjects: "${{ needs.build.outputs.hashes }}"
+      upload-assets: true  # Auto-upload provenance to release
+
+  # Step 3: Create GitHub release with all artifacts and provenance
+  release:
+    name: Create Release
+    needs: [build, provenance]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90bce6e0eb09 # v4.2.0
+        with:
+          name: release-artifacts
+          path: ./artifacts
+
+      - name: Download SLSA provenance
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90bce6e0eb09 # v4.2.0
+        with:
+          name: ${{ needs.provenance.outputs.provenance-name }}
+          path: ./provenance
+
+      - name: Display downloaded artifacts
+        run: |
+          echo "📦 Build artifacts:"
+          ls -lah ./artifacts/
+
+          echo ""
+          echo "🔐 SLSA provenance:"
+          ls -lah ./provenance/
 
       - name: Create Release
         uses: softprops/action-gh-release@a74c6b72af54cfa997e81df42d94703d6313a2d0 # v2.0.6
         with:
           files: |
-            install-security-controls.sh
-            install-security-controls.sh.sha256
-            uninstall-security-controls.sh
-            uninstall-security-controls.sh.sha256
-            checksums.txt
-            release-hashes-*.txt
-            release-hashes-*.json
-            release-hashes-*.yaml
+            ./artifacts/install-security-controls.sh
+            ./artifacts/install-security-controls.sh.sha256
+            ./artifacts/uninstall-security-controls.sh
+            ./artifacts/uninstall-security-controls.sh.sha256
+            ./artifacts/yubikey-gitsign-toggle.sh
+            ./artifacts/yubikey-gitsign-toggle.sh.sha256
+            ./artifacts/checksums.txt
+            ./artifacts/release-hashes-*.txt
+            ./artifacts/release-hashes-*.json
+            ./artifacts/release-hashes-*.yaml
+            ./provenance/*.intoto.jsonl
           generate_release_notes: true
           name: "1-Click GitHub Security ${{ github.ref_name }}"
           body: |
             ## 🛡️ 1-Click GitHub Security ${{ github.ref_name }}
+
+            ### 🔐 SLSA Build Level 3 Provenance
+
+            This release includes **cryptographically signed SLSA provenance** for supply chain security:
+
+            ✅ **SLSA Build Level 3** attestation
+            ✅ **Signed with Sigstore** (keyless signing, same as gitsign)
+            ✅ **Verifiable build provenance** (who, when, how artifacts were built)
+            ✅ **Supply chain transparency** (complete build context and materials)
+
+            **Verify SLSA provenance** (requires [slsa-verifier](https://github.com/slsa-framework/slsa-verifier)):
+
+            ```bash
+            # Download installer and provenance
+            curl -LO https://github.com/h4x0r/1-click-github-sec/releases/download/${{ github.ref_name }}/install-security-controls.sh
+            curl -LO https://github.com/h4x0r/1-click-github-sec/releases/download/${{ github.ref_name }}/install-security-controls.sh.intoto.jsonl
+
+            # Verify with slsa-verifier (cryptographic proof of authenticity)
+            slsa-verifier verify-artifact \
+              --provenance-path install-security-controls.sh.intoto.jsonl \
+              --source-uri github.com/h4x0r/1-click-github-sec \
+              install-security-controls.sh
+
+            # Output: "Verified signature against tlog entry..." = SUCCESS ✅
+            ```
 
             ### 📦 Quick Installation
 
@@ -180,36 +334,59 @@ jobs:
 
             ### 🔐 Security Verification
 
-            - ✅ All release artifacts include SHA256 checksums
-            - ✅ Scripts validated for syntax and integrity
+            **SLSA Provenance (Recommended)**:
+            - ✅ Cryptographically signed attestation
+            - ✅ Verifiable with slsa-verifier
+            - ✅ Supply chain transparency
+            - ✅ Non-falsifiable build provenance
+
+            **Legacy Checksums (Backward Compatible)**:
+            - ✅ SHA256 checksums for all artifacts
+            - ✅ Validated during build process
             - ✅ Generated from signed commits
 
             ### 📋 Release Artifacts
 
-            | File | Purpose | Verification |
-            |------|---------|--------------|
-            | `install-security-controls.sh` | Main installer script with 4-mode signing support | Required checksum verification |
-            | `install-security-controls.sh.sha256` | SHA256 checksum | Use with `sha256sum -c` |
-            | `uninstall-security-controls.sh` | Removal script | Optional but recommended |
-            | `uninstall-security-controls.sh.sha256` | SHA256 checksum | Use with `sha256sum -c` |
-            | `checksums.txt` | Combined checksums | All files in one place |
-            | `release-hashes-*.txt` | Hash registry (bash format) | For embedding in safe-upgrade.sh |
-            | `release-hashes-*.json` | Hash registry (JSON format) | Auto-downloaded by safe-upgrade |
-            | `release-hashes-*.yaml` | Hash registry (YAML format) | Human-readable documentation |
+            | File | Purpose | Verification Method |
+            |------|---------|---------------------|
+            | `install-security-controls.sh` | Main installer script | **SLSA provenance** (recommended) or SHA256 |
+            | `install-security-controls.sh.sha256` | SHA256 checksum | `sha256sum -c` |
+            | `install-security-controls.sh.intoto.jsonl` | **SLSA provenance** | `slsa-verifier verify-artifact` |
+            | `uninstall-security-controls.sh` | Removal script | SHA256 checksum |
+            | `yubikey-gitsign-toggle.sh` | YubiKey signing toggle | SHA256 checksum |
+            | `checksums.txt` | Combined checksums | All SHA256 in one file |
+            | `release-hashes-*.json` | Hash registry (legacy) | Auto-downloaded by safe-upgrade |
+
+            ### 🆕 What's New in This Release
+
+            **SLSA Build Level 3 Compliance**:
+            - First release with cryptographically signed provenance
+            - Supply chain security meets industry best practices
+            - Same Sigstore infrastructure as our gitsign commit signing
+            - Provenance includes full build context (builder, materials, invocation)
 
             ### 📚 Documentation
 
             **[Complete Documentation →](https://h4x0r.github.io/1-click-github-sec/)**
 
+            **SLSA Resources**:
+            - [What is SLSA?](https://slsa.dev/)
+            - [SLSA Verifier Installation](https://github.com/slsa-framework/slsa-verifier#installation)
+            - [Understanding SLSA Levels](https://slsa.dev/spec/v1.0/levels)
+
             ---
 
-            **🛡️ Always verify checksums before execution - this is critical for security!**
+            **🛡️ Cryptographic verification (SLSA provenance) provides stronger security guarantees than checksums alone!**
           draft: false
           prerelease: false
 
-      - name: Update installation instructions in README
+      - name: Display release information
         run: |
-          echo "🔄 README update suggestions:"
-          echo "Consider updating README.md Quick Start section to reference this release:"
-          echo "  curl -O https://github.com/h4x0r/1-click-github-sec/releases/download/${{ github.ref_name }}/install-security-controls.sh"
-          echo "  curl -O https://github.com/h4x0r/1-click-github-sec/releases/download/${{ github.ref_name }}/install-security-controls.sh.sha256"
+          echo "✅ Release created successfully!"
+          echo ""
+          echo "📦 Release: ${{ github.ref_name }}"
+          echo "🔗 URL: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}"
+          echo ""
+          echo "🔐 SLSA provenance verification:"
+          echo "   curl -LO https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/install-security-controls.sh.intoto.jsonl"
+          echo "   slsa-verifier verify-artifact --provenance-path *.intoto.jsonl --source-uri github.com/${{ github.repository }} install-security-controls.sh"
