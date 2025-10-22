@@ -44,10 +44,26 @@ log_error() { echo -e "${RED}[ERROR]${NC} $*"; }
 # Version-specific file hash registry
 # Format: version|file_path|sha256_hash
 # This is the "known good" state for each version
+#
+# ⚠️  DEPRECATION NOTICE: This legacy hash registry is deprecated as of v0.6.11
+#     Prefer SLSA provenance verification for cryptographic authenticity guarantees.
+#     Legacy hashes remain for backward compatibility with older versions.
+#
+# Migration Path:
+#   • v0.6.11+: Use SLSA provenance verification (--verify-slsa)
+#   • v0.6.10 and earlier: Continue using legacy hash registry
+#
 declare -A VERSION_HASHES
 
 # Initialize hash registry for known versions
 init_hash_registry() {
+  # ⚠️  LEGACY: Embedded hashes for backward compatibility only
+  #
+  # Version 0.6.11+ should use SLSA provenance instead:
+  #   ./scripts/safe-upgrade.sh --verify-slsa install-security-controls.sh 0.6.11
+  #
+  # These hashes remain for versions that don't have SLSA provenance yet.
+
   # Version 0.6.10 hashes (current version)
   # These would be generated during release process
   VERSION_HASHES["0.6.10|.security-controls/bin/pinactlite"]="8869c009332879a5366e2aeaf14eaca82f4467d5ab35f0042293da5e966d8097"
@@ -57,7 +73,8 @@ init_hash_registry() {
   VERSION_HASHES["0.6.9|.security-controls/bin/pinactlite"]="9c580e3a5c6386ca1365ef587cb71dbe9cb1d39caf639c8e25dfe580e616c731"
   VERSION_HASHES["0.6.9|.security-controls/bin/gitleakslite"]="TBD"
 
-  # Future versions would be added here during release process
+  # Future versions (0.6.11+) should use SLSA provenance instead
+  # Legacy hashes will not be maintained for new versions
 }
 
 # Get installed version
@@ -393,13 +410,41 @@ handle_modified_files_interactive() {
 }
 
 # ============================================================================
-# FUTURE ENHANCEMENTS
+# LEGACY HASH REGISTRY (DEPRECATED - Use SLSA Provenance Instead)
+# ============================================================================
+#
+# ⚠️  DEPRECATION NOTICE: Legacy hash registry is deprecated as of v0.6.11
+#
+# The manual hash registry system is being replaced by SLSA provenance which
+# provides cryptographic proof of authenticity via Sigstore signing.
+#
+# Migration Guidance:
+#   • New releases (v0.6.11+): Use SLSA provenance verification
+#   • Old releases (v0.6.10 and earlier): Continue using hash registry
+#
+# Why SLSA Provenance is Superior:
+#   ✅ Cryptographically signed attestation (non-falsifiable)
+#   ✅ Verifiable with slsa-verifier (industry standard tool)
+#   ✅ Supply chain transparency (complete build provenance)
+#   ✅ Sigstore integration (keyless signing infrastructure)
+#   ❌ Legacy hashes: No cryptographic proof, vulnerable to registry compromise
+#
+# This section remains for backward compatibility only.
 # ============================================================================
 
-# Auto-download hash registry from GitHub releases
+# Auto-download hash registry from GitHub releases (LEGACY)
 download_hash_registry() {
   local version="$1"
   local format="${2:-json}"
+
+  # Show deprecation warning
+  echo ""
+  log_warning "⚠️  DEPRECATION WARNING: Legacy hash registry is deprecated"
+  log_info "💡 For version 0.6.11+, use SLSA provenance instead:"
+  log_info "   ./scripts/safe-upgrade.sh --verify-slsa install-security-controls.sh $version"
+  echo ""
+  log_info "Continuing with legacy hash registry (backward compatibility)..."
+  echo ""
 
   local registry_url="https://github.com/h4x0r/1-click-github-sec/releases/download/v${version}/release-hashes-${version}.${format}"
 
@@ -410,7 +455,8 @@ download_hash_registry() {
 
   if ! curl -fsSL "$registry_url" -o "$temp_file"; then
     log_warning "Could not download hash registry from GitHub releases"
-    log_info "Falling back to embedded hash registry"
+    log_info "Note: Versions 0.6.11+ may not have legacy hash registry files"
+    log_info "Falling back to embedded hash registry or use SLSA provenance"
     rm -f "$temp_file"
     return 1
   fi
@@ -747,6 +793,239 @@ handle_modified_file_with_merge() {
   esac
 }
 
+# ============================================================================
+# SLSA PROVENANCE VERIFICATION (Recommended)
+# ============================================================================
+
+# Check if slsa-verifier is installed
+check_slsa_verifier() {
+  command -v slsa-verifier >/dev/null 2>&1
+}
+
+# Install slsa-verifier if needed
+install_slsa_verifier() {
+  log_info "📥 Installing slsa-verifier..."
+
+  local version="v2.7.1"
+  local arch
+  arch=$(uname -m)
+  local os
+  os=$(uname -s | tr '[:upper:]' '[:lower:]')
+
+  # Map architecture names
+  case "$arch" in
+    x86_64) arch="amd64" ;;
+    aarch64|arm64) arch="arm64" ;;
+    *)
+      log_error "Unsupported architecture: $arch"
+      return 1
+      ;;
+  esac
+
+  local binary_name="slsa-verifier-${os}-${arch}"
+  local download_url="https://github.com/slsa-framework/slsa-verifier/releases/download/${version}/${binary_name}"
+  local checksum_url="https://github.com/slsa-framework/slsa-verifier/releases/download/${version}/${binary_name}.sha256"
+
+  local temp_dir
+  temp_dir=$(mktemp -d)
+
+  log_info "Downloading slsa-verifier ${version} for ${os}/${arch}..."
+
+  if ! curl -fsSL "$download_url" -o "${temp_dir}/slsa-verifier"; then
+    log_error "Failed to download slsa-verifier"
+    rm -rf "$temp_dir"
+    return 1
+  fi
+
+  # Download and verify checksum
+  if ! curl -fsSL "$checksum_url" -o "${temp_dir}/slsa-verifier.sha256"; then
+    log_warning "Could not download checksum, skipping verification"
+  else
+    log_info "Verifying slsa-verifier checksum..."
+    if ! (cd "$temp_dir" && sha256sum -c slsa-verifier.sha256); then
+      log_error "Checksum verification failed!"
+      rm -rf "$temp_dir"
+      return 1
+    fi
+  fi
+
+  # Install to user's local bin or system bin
+  local install_dir="${HOME}/.local/bin"
+  if [[ ! -d $install_dir ]]; then
+    install_dir="/usr/local/bin"
+    if [[ ! -w $install_dir ]]; then
+      log_info "Installing to system directory requires sudo"
+      sudo install -m 0755 "${temp_dir}/slsa-verifier" "$install_dir/slsa-verifier"
+    else
+      install -m 0755 "${temp_dir}/slsa-verifier" "$install_dir/slsa-verifier"
+    fi
+  else
+    install -m 0755 "${temp_dir}/slsa-verifier" "$install_dir/slsa-verifier"
+  fi
+
+  rm -rf "$temp_dir"
+
+  log_success "✅ slsa-verifier installed successfully"
+  return 0
+}
+
+# Verify artifact using SLSA provenance
+verify_slsa_provenance() {
+  local artifact_path="$1"
+  local provenance_path="$2"
+  local source_uri="${3:-github.com/h4x0r/1-click-github-sec}"
+  local source_tag="${4:-}"
+
+  if ! check_slsa_verifier; then
+    log_warning "slsa-verifier not found"
+
+    if ask_user_confirmation "Install slsa-verifier to enable cryptographic verification?" "y"; then
+      if ! install_slsa_verifier; then
+        log_error "Failed to install slsa-verifier"
+        return 1
+      fi
+    else
+      log_warning "Skipping SLSA provenance verification"
+      return 2 # User declined installation
+    fi
+  fi
+
+  log_info "🔐 Verifying SLSA provenance..."
+  log_info "Artifact: $artifact_path"
+  log_info "Provenance: $provenance_path"
+  log_info "Source: $source_uri"
+
+  local verify_cmd="slsa-verifier verify-artifact --provenance-path '$provenance_path' --source-uri '$source_uri'"
+
+  if [[ -n $source_tag ]]; then
+    verify_cmd="$verify_cmd --source-tag '$source_tag'"
+    log_info "Tag: $source_tag"
+  fi
+
+  verify_cmd="$verify_cmd '$artifact_path'"
+
+  if eval "$verify_cmd"; then
+    log_success "✅ SLSA provenance verified successfully!"
+    log_success "   Artifact authenticity cryptographically proven"
+    return 0
+  else
+    log_error "❌ SLSA provenance verification FAILED!"
+    log_error "   This artifact may be tampered with or from untrusted source"
+    return 1
+  fi
+}
+
+# Download SLSA provenance for a release
+download_slsa_provenance() {
+  local version="$1"
+  local artifact_name="${2:-install-security-controls.sh}"
+
+  # SLSA provenance files follow pattern: {artifact}.intoto.jsonl or multiple.intoto.jsonl
+  local provenance_name="multiple.intoto.jsonl"
+  local provenance_url="https://github.com/h4x0r/1-click-github-sec/releases/download/v${version}/${provenance_name}"
+
+  local temp_file
+  temp_file=$(mktemp)
+
+  log_info "📥 Downloading SLSA provenance for version $version..."
+
+  if ! curl -fsSL "$provenance_url" -o "$temp_file"; then
+    log_warning "Could not download SLSA provenance from GitHub releases"
+    log_info "Falling back to legacy hash verification"
+    rm -f "$temp_file"
+    return 1
+  fi
+
+  # Verify it's valid JSON
+  if ! jq empty "$temp_file" 2>/dev/null; then
+    log_warning "Downloaded provenance is not valid JSON"
+    rm -f "$temp_file"
+    return 1
+  fi
+
+  log_success "Downloaded SLSA provenance from releases"
+  echo "$temp_file"
+}
+
+# Extract hashes from SLSA provenance
+extract_hashes_from_provenance() {
+  local provenance_file="$1"
+  local version="$2"
+
+  if ! command -v jq >/dev/null 2>&1; then
+    log_warning "jq not found - cannot parse SLSA provenance"
+    return 1
+  fi
+
+  log_info "Extracting verified hashes from SLSA provenance..."
+
+  local count=0
+
+  # SLSA provenance format: subject array contains {name, digest: {sha256: hash}}
+  while IFS= read -r line; do
+    local file
+    local hash
+    file=$(echo "$line" | jq -r '.name')
+    hash=$(echo "$line" | jq -r '.digest.sha256')
+
+    if [[ -n $file ]] && [[ -n $hash ]] && [[ $hash != "null" ]]; then
+      VERSION_HASHES["$version|$file"]="$hash"
+      ((count++))
+      log_info "  • $file: $hash"
+    fi
+  done < <(jq -c '.subject[]' "$provenance_file")
+
+  if [[ $count -eq 0 ]]; then
+    log_error "No hashes extracted from SLSA provenance"
+    return 1
+  fi
+
+  log_success "✅ Extracted $count verified file hashes from SLSA provenance"
+  log_info "   These hashes are cryptographically attested by Sigstore"
+  return 0
+}
+
+# Verify installer with SLSA provenance (primary verification method)
+verify_installer_with_slsa() {
+  local installer_path="$1"
+  local version="$2"
+
+  log_info "🔐 Verifying installer with SLSA Build Level 3 provenance..."
+  echo ""
+
+  # Download SLSA provenance
+  local provenance_path
+  provenance_path=$(download_slsa_provenance "$version" "install-security-controls.sh")
+
+  if [[ -z $provenance_path ]] || [[ ! -f $provenance_path ]]; then
+    log_warning "SLSA provenance not available for version $version"
+    log_info "Falling back to legacy SHA256 checksum verification"
+    return 1
+  fi
+
+  # Verify using slsa-verifier
+  if verify_slsa_provenance "$installer_path" "$provenance_path" "github.com/h4x0r/1-click-github-sec" "v${version}"; then
+    # Extract hashes for installation verification
+    extract_hashes_from_provenance "$provenance_path" "$version"
+    local extraction_result=$?
+
+    rm -f "$provenance_path"
+
+    if [[ $extraction_result -eq 0 ]]; then
+      log_success "✅ Installer verified with SLSA provenance"
+      log_success "   Supply chain security: SLSA Build Level 3 compliant"
+      return 0
+    else
+      log_warning "Could not extract hashes from provenance"
+      return 1
+    fi
+  else
+    log_error "SLSA provenance verification failed"
+    rm -f "$provenance_path"
+    return 1
+  fi
+}
+
 # Show usage
 show_usage() {
   cat <<EOF
@@ -760,12 +1039,18 @@ DESCRIPTION:
     Verifies file integrity before upgrade and provides interactive
     handling of customized files.
 
+    🔐 SLSA Build Level 3 Provenance Support:
+    This tool now supports cryptographic verification using SLSA provenance,
+    providing stronger security guarantees than SHA256 checksums alone.
+
 OPTIONS:
     (no args)           Perform safe upgrade with user confirmation (DEFAULT)
     --check             Check installation integrity (no upgrade)
     --rollback          Rollback to a previous backup
     --force             Force upgrade without confirmation (NOT recommended)
-    --download-hashes   Download hash registry from GitHub releases
+    --download-hashes   Download hash registry from GitHub releases (LEGACY)
+    --verify-slsa       Verify installer with SLSA provenance (RECOMMENDED)
+    --install-verifier  Install slsa-verifier tool
     --help              Show this help message
 
 ENVIRONMENT VARIABLES:
@@ -779,8 +1064,9 @@ WORKFLOW:
     4. Show diffs for modified files
     5. Ask user what to do with each modification
     6. Backup modified files before replacing
-    7. Download and install new version
-    8. Verify new installation
+    7. Download and verify new version with SLSA provenance (RECOMMENDED)
+    8. Install new version
+    9. Verify new installation
 
 EXAMPLES:
     $0                  # Safe upgrade with interactive prompts (DEFAULT)
@@ -788,13 +1074,35 @@ EXAMPLES:
     $0 --rollback       # Restore from previous backup
     $0 --force          # Force upgrade (skips confirmations)
 
+    # Verify installer with SLSA provenance (recommended)
+    $0 --verify-slsa install-security-controls.sh 0.6.11
+
+    # Install slsa-verifier tool
+    $0 --install-verifier
+
     # Use custom merge tool
     MERGE_TOOL=meld $0
 
-    # Download hash registry for specific version
+    # Download hash registry for specific version (LEGACY)
     $0 --download-hashes 0.7.0
 
+VERIFICATION METHODS:
+    🔐 SLSA Provenance (RECOMMENDED):
+       ✅ Cryptographically signed attestation via Sigstore
+       ✅ Non-falsifiable build provenance
+       ✅ Supply chain transparency (who, when, how artifacts were built)
+       ✅ SLSA Build Level 3 compliance
+
+    📝 SHA256 Checksums (LEGACY - Backward Compatible):
+       ✅ File integrity verification
+       ✅ Tamper detection
+       ⚠️  No cryptographic proof of origin
+       ⚠️  Vulnerable to registry compromise
+
 SAFETY FEATURES:
+    ✅ SLSA Build Level 3 provenance verification (NEW)
+    ✅ Cryptographic authenticity verification via Sigstore (NEW)
+    ✅ Auto-install slsa-verifier tool (NEW)
     ✅ Version-specific hash verification
     ✅ User modification detection
     ✅ Interactive diff display
@@ -802,7 +1110,7 @@ SAFETY FEATURES:
     ✅ Automatic backup of modified files
     ✅ Rollback capability
     ✅ Merge tool integration (meld, kdiff3, vimdiff)
-    ✅ Auto-download hash registry from releases
+    ✅ Auto-download hash registry from releases (LEGACY)
     ✅ 3-way merge conflict resolution
 
 EOF
@@ -835,7 +1143,28 @@ main() {
         echo "Usage: $0 --download-hashes VERSION"
         exit 1
       fi
+      log_warning "⚠️  Using legacy hash registry (DEPRECATED)"
+      log_info "💡 Recommendation: Use --verify-slsa for cryptographic verification"
       download_hash_registry "$version" "json"
+      ;;
+    --verify-slsa)
+      local installer_path="${2:-}"
+      local version="${3:-}"
+      if [[ -z $installer_path ]] || [[ -z $version ]]; then
+        log_error "Installer path and version required for --verify-slsa"
+        echo "Usage: $0 --verify-slsa INSTALLER_PATH VERSION"
+        echo "Example: $0 --verify-slsa install-security-controls.sh 0.6.11"
+        exit 1
+      fi
+      verify_installer_with_slsa "$installer_path" "$version"
+      ;;
+    --install-verifier)
+      if check_slsa_verifier; then
+        log_success "slsa-verifier is already installed"
+        slsa-verifier version || true
+      else
+        install_slsa_verifier
+      fi
       ;;
     --force)
       log_warning "⚠️  Force mode: skipping safety confirmations"
