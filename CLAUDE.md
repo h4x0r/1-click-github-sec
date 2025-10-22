@@ -35,47 +35,90 @@
 # VERIFY checksum before execution (STRONGLY RECOMMENDED - critical security practice)
 ```
 
-### 2. **Developer Experience as Security Feature**
-> "Friction is the enemy of security adoption"
+### 2. **Don't Make Me Think (DMMT) - Universal Design Principle**
+> "Make it impossible to do the wrong thing, effortless to do the right thing"
 
-- **Sub-80 Second Pre-Push**: Fast feedback prevents security bypass behavior
-- **Clear Fix Instructions**: Every failure provides specific remediation steps
-- **Progressive Enhancement**: Start minimal, add security incrementally
-- **Sensible Defaults**: Secure-by-default configuration requiring no expertise
-- **Emergency Escape Hatches**: `--no-verify` available but discouraged
-- **Auto-Fix First**: Automatically fix issues instead of blocking (Don't Make Me Think principle)
+DMMT is inspired by the UK power plug design: it's physically impossible to insert incorrectly, and the earth pin opens the live/neutral shutters automatically. This is **secure by default through design**, not through documentation or user vigilance.
 
-**Auto-Fix Philosophy (Don't Make Me Think):**
-> "Fix it for me, don't make me think about it"
+**Universal Applications Across System:**
 
-Security tools should solve problems, not create cognitive load:
-- **Automatic Remediation**: Fix issues automatically when safe to do so
-- **Contextual Guidance**: When auto-fix isn't possible, provide exact fix commands
-- **Zero Decisions**: Developers shouldn't need to decide *how* to fix security issues
-- **Show, Don't Block**: Display what was fixed, don't interrupt workflow
-- **Trust Through Transparency**: Show diffs of auto-fixes for review
+**1. Automatic Correctness (Like UK Plug Orientation)**
+- **Auto-Fix Security Issues**: SHA pinning, formatting, linting happen automatically
+- **Impossible Wrong Configurations**: Installer validates and corrects settings
+- **Self-Healing Systems**: Pre-push hooks fix issues, don't just complain
+- **Smart Defaults**: Secure-by-default with zero configuration required
 
-**Examples:**
+**2. Pit of Success Design**
+- **Single Install Command**: `./install-security-controls.sh` - one command, comprehensive security
+- **No Manual Steps**: Tools auto-download, verify, configure, integrate
+- **Progressive Enhancement**: Start minimal, automatically add security incrementally
+- **Graceful Degradation**: Partial features better than blocking entirely
+
+**3. Physical/Logical Constraints (Preventing Errors)**
+- **Checksum Verification Enforced**: Script won't execute until checksum verified
+- **Signed Commits Only**: Pre-push hooks ensure all commits are signed
+- **Pinned Actions Only**: Workflows can't use unpinned actions (auto-pinned if found)
+- **No Secrets in Repo**: gitleaks blocks commits with secrets
+
+**4. Zero Cognitive Load**
+- **No Decisions Required**: Tools choose optimal security settings automatically
+- **No "How" Questions**: Users shouldn't decide *how* to implement security
+- **No Reading Manuals**: Security works immediately after install
+- **No Remembering**: Hooks remember security requirements, developers don't have to
+
+**5. Visibility Through Transparency (Not Invisibility)**
+- **Show What Was Done**: Display auto-fixes, don't silently change things
+- **Explain Why**: Error messages include rationale and impact
+- **Build Trust**: Diffs and logs show all automated decisions
+- **Learn Passively**: Developers absorb security best practices through use
+
+**Design Philosophy Examples:**
+
 ```bash
-# ❌ BAD: Block with vague error
-"Unpinned actions detected. Please fix before pushing."
+# ❌ BAD: Make user think about how to fix
+"Error: Action not pinned. Please pin to SHA."
 
-# ✅ GOOD: Auto-fix and inform
-"🛠 Auto-pinning unpinned references...
-✅ Auto-pinned actions/checkout@v4 → 08eba0b2...
-📝 Changes staged - review with 'git diff .github/workflows'"
+# ✅ GOOD: Fix it automatically, show what happened
+"🛠 Auto-pinned actions/checkout@v4 → 08eba0b2..."
+
+# ❌ BAD: Require manual configuration
+"Configure gitleaks with custom rules for your project."
+
+# ✅ GOOD: Work with zero configuration
+"✅ Secret scanning enabled with sensible defaults."
+
+# ❌ BAD: Make wrong thing easy (pipe-to-bash)
+"curl https://install.sh | bash"
+
+# ✅ GOOD: Make wrong thing impossible
+"Download → Verify Checksum → Execute (enforced workflow)"
 ```
 
-**When to Auto-Fix:**
-- Deterministic fixes (SHA pinning, formatting, linting)
+**When to Apply DMMT:**
+
+**Auto-Fix (Zero Thought Required):**
+- Deterministic fixes with one correct answer
 - Zero risk of breaking functionality
-- Easily reversible changes
+- Easily reversible if needed
 - Industry-standard best practices
 
-**When to Block:**
-- Secrets detected (cannot auto-remove safely)
-- Multiple valid fix options (requires human judgment)
-- Breaking changes that need review
+**Guide with Clear Command (Minimal Thought):**
+- Multiple valid approaches, but we recommend one
+- Provide exact command to copy/paste
+- Explain trade-offs briefly
+- Example: "Run: `git commit --gpg-sign`"
+
+**Block with Context (Thought Required):**
+- Secrets detected (no safe auto-fix)
+- Breaking changes needing review
+- Multiple valid options requiring human judgment
+- Always provide remediation guidance
+
+**UK Plug Design Parallels:**
+- **Physical Constraint**: Earth pin must insert first → **Logical Constraint**: Checksum must verify first
+- **Auto-Safety**: Live/neutral shutters close automatically → **Auto-Security**: Hooks fix issues automatically
+- **Impossible Wrong Use**: Can't insert upside down → **Impossible Wrong Config**: Can't use unverified installer
+- **No User Vigilance**: Works safely without thinking → **No Developer Vigilance**: Works securely without remembering
 
 **Performance Budget:**
 - Pre-push hook: < 60 seconds total
@@ -754,7 +797,18 @@ Our design philosophy represents formal architectural decisions that guide all d
 - ❌ Limited to GitHub's security feature set
 - ❌ Cannot leverage specialized third-party analytics
 
-### ADR-004: Performance Budget for Pre-Push (CLAUDE.md § 2)
+### ADR-004: Don't Make Me Think (DMMT) Universal Design (CLAUDE.md § 2)
+**Decision**: Make it impossible to do wrong thing, effortless to do right thing (UK plug principle)
+**Status**: ✅ Accepted
+**Context**: Security through design constraints, not documentation or user vigilance
+**Consequences**:
+- ✅ Auto-fix security issues automatically (SHA pinning, formatting, linting)
+- ✅ Zero configuration required - secure by default
+- ✅ Impossible wrong configurations - installer validates and corrects
+- ❌ More complex implementation to ensure safety of auto-fixes
+- ❌ Must carefully distinguish what can be auto-fixed vs. requires human judgment
+
+### ADR-005: Performance Budget for Pre-Push (CLAUDE.md § 2)
 **Decision**: Pre-push hook must complete in under 60 seconds total
 **Status**: ✅ Accepted
 **Context**: Developer experience is a security feature - friction leads to bypass
@@ -764,7 +818,7 @@ Our design philosophy represents formal architectural decisions that guide all d
 - ❌ Cannot run comprehensive analysis in pre-push
 - ❌ Deep scanning must be deferred to CI tier
 
-### ADR-005: Cryptographic Verification First (CLAUDE.md § 1)
+### ADR-006: Cryptographic Verification First (CLAUDE.md § 1)
 **Decision**: Every installer, update, and component must be cryptographically verified
 **Status**: ✅ Accepted
 **Context**: Security tools must be more secure than problems they solve
@@ -774,7 +828,7 @@ Our design philosophy represents formal architectural decisions that guide all d
 - ❌ Additional complexity in release process
 - ❌ Cannot use tools without verifiable checksums
 
-### ADR-006: Multi-Language Universal Design (CLAUDE.md § 5)
+### ADR-007: Multi-Language Universal Design (CLAUDE.md § 5)
 **Decision**: Work with each language ecosystem, not against it
 **Status**: ✅ Accepted
 **Context**: Leverage existing tooling and conventions for maximum effectiveness
