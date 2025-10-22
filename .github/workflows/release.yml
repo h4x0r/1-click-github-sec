@@ -112,6 +112,30 @@ jobs:
           echo "📋 Generated checksums:"
           cat checksums.txt
 
+      - name: Generate hash registry for safe-upgrade
+        run: |
+          set -euo pipefail
+
+          # Extract version from tag (remove 'v' prefix)
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
+
+          echo "🔐 Generating hash registry for version $VERSION"
+
+          # Generate hash registry in all formats
+          ./scripts/generate-release-hashes.sh "$VERSION" --format bash
+          ./scripts/generate-release-hashes.sh "$VERSION" --format json
+          ./scripts/generate-release-hashes.sh "$VERSION" --format yaml
+
+          # Display generated registries
+          echo ""
+          echo "📋 Generated hash registries:"
+          ls -lh release-hashes-*.{txt,json,yaml}
+
+          echo ""
+          echo "📄 Bash format (for embedding in safe-upgrade.sh):"
+          cat "release-hashes-${VERSION}.txt"
+
       - name: Validate installer integrity
         run: |
           set -euo pipefail
@@ -131,6 +155,9 @@ jobs:
             uninstall-security-controls.sh
             uninstall-security-controls.sh.sha256
             checksums.txt
+            release-hashes-*.txt
+            release-hashes-*.json
+            release-hashes-*.yaml
           generate_release_notes: true
           name: "1-Click GitHub Security ${{ github.ref_name }}"
           body: |
@@ -166,6 +193,9 @@ jobs:
             | `uninstall-security-controls.sh` | Removal script | Optional but recommended |
             | `uninstall-security-controls.sh.sha256` | SHA256 checksum | Use with `sha256sum -c` |
             | `checksums.txt` | Combined checksums | All files in one place |
+            | `release-hashes-*.txt` | Hash registry (bash format) | For embedding in safe-upgrade.sh |
+            | `release-hashes-*.json` | Hash registry (JSON format) | Auto-downloaded by safe-upgrade |
+            | `release-hashes-*.yaml` | Hash registry (YAML format) | Human-readable documentation |
 
             ### 📚 Documentation
 
