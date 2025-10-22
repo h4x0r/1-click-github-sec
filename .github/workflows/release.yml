@@ -184,6 +184,15 @@ jobs:
 
           VERSION="${{ steps.version.outputs.version }}"
 
+          # Skip hash registry for RC releases (doesn't support prerelease versions)
+          if [[ "${{ github.ref_name }}" =~ -rc[0-9]+$ ]]; then
+            echo "⚠️  Skipping legacy hash registry for RC release (only for production releases)"
+            echo "   SLSA provenance is the primary verification method for all releases"
+            # Create empty files to satisfy artifact uploads
+            touch release-hashes-empty.txt release-hashes-empty.json release-hashes-empty.yaml
+            exit 0
+          fi
+
           echo "⚠️  Generating legacy hash registry (will be deprecated in favor of SLSA provenance)"
           echo "🔐 Hash registry for version $VERSION"
 
