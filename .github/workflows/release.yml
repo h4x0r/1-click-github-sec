@@ -237,11 +237,11 @@ jobs:
             ```bash
             # Download installer and provenance
             curl -LO https://github.com/h4x0r/1-click-github-sec/releases/download/${{ github.ref_name }}/install-security-controls.sh
-            curl -LO https://github.com/h4x0r/1-click-github-sec/releases/download/${{ github.ref_name }}/install-security-controls.sh.intoto.jsonl
+            curl -LO https://github.com/h4x0r/1-click-github-sec/releases/download/${{ github.ref_name }}/multiple.intoto.jsonl
 
             # Verify with slsa-verifier (cryptographic proof of authenticity)
             slsa-verifier verify-artifact \
-              --provenance-path install-security-controls.sh.intoto.jsonl \
+              --provenance-path multiple.intoto.jsonl \
               --source-uri github.com/h4x0r/1-click-github-sec \
               install-security-controls.sh
 
@@ -316,5 +316,5 @@ jobs:
           echo "🔗 URL: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}"
           echo ""
           echo "🔐 SLSA provenance verification:"
-          echo "   curl -LO https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/install-security-controls.sh.intoto.jsonl"
-          echo "   slsa-verifier verify-artifact --provenance-path *.intoto.jsonl --source-uri github.com/${{ github.repository }} install-security-controls.sh"
+          echo "   curl -LO https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/multiple.intoto.jsonl"
+          echo "   slsa-verifier verify-artifact --provenance-path multiple.intoto.jsonl --source-uri github.com/${{ github.repository }} install-security-controls.sh"
