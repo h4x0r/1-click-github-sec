@@ -32,8 +32,6 @@ readonly RED='\033[0;31m'
 readonly GREEN='\033[0;32m'
 readonly YELLOW='\033[1;33m'
 readonly BLUE='\033[0;34m'
-readonly CYAN='\033[0;36m'
-readonly MAGENTA='\033[0;35m'
 readonly NC='\033[0m' # No Color
 
 # Logging
@@ -52,7 +50,7 @@ init_hash_registry() {
   # Version 0.6.10 hashes (current version)
   # These would be generated during release process
   VERSION_HASHES["0.6.10|.security-controls/bin/pinactlite"]="8869c009332879a5366e2aeaf14eaca82f4467d5ab35f0042293da5e966d8097"
-  VERSION_HASHES["0.6.10|.security-controls/bin/gitleakslite"]="TBD"  # To be determined
+  VERSION_HASHES["0.6.10|.security-controls/bin/gitleakslite"]="TBD" # To be determined
 
   # Version 0.6.9 hashes (example for previous version)
   VERSION_HASHES["0.6.9|.security-controls/bin/pinactlite"]="9c580e3a5c6386ca1365ef587cb71dbe9cb1d39caf639c8e25dfe580e616c731"
@@ -63,7 +61,7 @@ init_hash_registry() {
 
 # Get installed version
 get_installed_version() {
-  if [[ -f "$VERSION_FILE" ]]; then
+  if [[ -f $VERSION_FILE ]]; then
     grep -E "^version=" "$VERSION_FILE" | cut -d= -f2 | tr -d '"'
   else
     echo "unknown"
@@ -83,7 +81,7 @@ get_expected_hash() {
 get_actual_hash() {
   local file_path="$1"
 
-  if [[ ! -f "$file_path" ]]; then
+  if [[ ! -f $file_path ]]; then
     echo "missing"
     return
   fi
@@ -99,28 +97,28 @@ check_file_integrity() {
   local expected_hash
   expected_hash=$(get_expected_hash "$version" "$file_path")
 
-  if [[ "$expected_hash" == "unknown" ]]; then
+  if [[ $expected_hash == "unknown" ]]; then
     log_warning "No hash record for $file_path in version $version"
-    return 2  # Unknown/can't verify
+    return 2 # Unknown/can't verify
   fi
 
-  if [[ "$expected_hash" == "TBD" ]]; then
+  if [[ $expected_hash == "TBD" ]]; then
     log_warning "Hash not yet recorded for $file_path in version $version"
-    return 2  # Not yet tracked
+    return 2 # Not yet tracked
   fi
 
   local actual_hash
   actual_hash=$(get_actual_hash "$file_path")
 
-  if [[ "$actual_hash" == "missing" ]]; then
+  if [[ $actual_hash == "missing" ]]; then
     log_warning "File missing: $file_path"
-    return 3  # Missing file
+    return 3 # Missing file
   fi
 
-  if [[ "$expected_hash" == "$actual_hash" ]]; then
-    return 0  # Intact
+  if [[ $expected_hash == "$actual_hash" ]]; then
+    return 0 # Intact
   else
-    return 1  # Modified
+    return 1 # Modified
   fi
 }
 
@@ -154,7 +152,7 @@ ask_user_confirmation() {
   local default="${2:-n}"
 
   local response
-  if [[ "$default" == "y" ]]; then
+  if [[ $default == "y" ]]; then
     read -rp "${prompt} [Y/n]: " response
     response="${response:-y}"
   else
@@ -162,7 +160,7 @@ ask_user_confirmation() {
     response="${response:-n}"
   fi
 
-  [[ "${response,,}" == "y" ]]
+  [[ ${response,,} == "y" ]]
 }
 
 # Create backup of file
@@ -173,7 +171,8 @@ backup_file() {
 
   mkdir -p "$BACKUP_DIR"
 
-  local backup_path="$BACKUP_DIR/$(basename "$file_path").${timestamp}.backup"
+  local backup_path
+  backup_path="$BACKUP_DIR/$(basename "$file_path").${timestamp}.backup"
   cp "$file_path" "$backup_path"
 
   log_success "✅ Backed up to: $backup_path"
@@ -185,7 +184,7 @@ verify_installation_integrity() {
   local version
   version=$(get_installed_version)
 
-  if [[ "$version" == "unknown" ]]; then
+  if [[ $version == "unknown" ]]; then
     log_error "Cannot determine installed version"
     log_info "Version file not found: $VERSION_FILE"
     return 1
@@ -213,27 +212,22 @@ verify_installation_integrity() {
   for file_path in "${files_to_check[@]}"; do
     ((total_files++))
 
-    local status="unknown"
     if check_file_integrity "$version" "$file_path"; then
-      status="intact"
       ((intact_files++))
       echo -e "${GREEN}✅${NC} $file_path - intact"
     else
       local rc=$?
       case $rc in
         1)
-          status="modified"
           ((modified_files++))
           modified_file_list+=("$file_path")
           echo -e "${YELLOW}⚠️${NC}  $file_path - ${YELLOW}MODIFIED${NC}"
           ;;
         2)
-          status="unknown"
           ((unknown_files++))
           echo -e "${BLUE}❓${NC} $file_path - unknown/not tracked"
           ;;
         3)
-          status="missing"
           ((missing_files++))
           echo -e "${RED}❌${NC} $file_path - ${RED}MISSING${NC}"
           ;;
@@ -272,9 +266,9 @@ safe_upgrade() {
   local current_version
   current_version=$(get_installed_version)
 
-  if [[ "$current_version" == "unknown" ]]; then
+  if [[ $current_version == "unknown" ]]; then
     log_warning "Cannot detect current installation version"
-    if [[ "$force_mode" != "true" ]]; then
+    if [[ $force_mode != "true" ]]; then
       if ! ask_user_confirmation "Proceed with upgrade anyway?"; then
         log_info "Upgrade cancelled"
         return 1
@@ -294,14 +288,14 @@ safe_upgrade() {
     integrity_ok=false
   fi
 
-  if [[ "$integrity_ok" == "false" ]]; then
+  if [[ $integrity_ok == "false" ]]; then
     echo ""
     log_warning "⚠️  Modified files detected in current installation"
     log_info "These files differ from the original version $current_version installation."
     log_info "They may contain your customizations or local changes."
     echo ""
 
-    if [[ "$force_mode" != "true" ]]; then
+    if [[ $force_mode != "true" ]]; then
       log_info "Options:"
       echo "  1. View diffs and decide per file (recommended)"
       echo "  2. Backup all and proceed with upgrade"
@@ -452,7 +446,7 @@ main() {
   local mode="${1:-}"
 
   case "$mode" in
-    --help|-h)
+    --help | -h)
       show_usage
       exit 0
       ;;
