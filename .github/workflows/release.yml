@@ -121,7 +121,6 @@ jobs:
           # Ensure all managed files are present
           ls -la install-security-controls.sh
           ls -la uninstall-security-controls.sh
-          ls -la yubikey-gitsign-toggle.sh
           ls -la .security-controls/bin/pinactlite
           ls -la .security-controls/bin/gitleakslite
 
@@ -140,7 +139,6 @@ jobs:
           hashes=$(sha256sum \
             install-security-controls.sh \
             uninstall-security-controls.sh \
-            yubikey-gitsign-toggle.sh \
             .security-controls/bin/pinactlite \
             .security-controls/bin/gitleakslite \
             | base64 -w0)
@@ -153,7 +151,6 @@ jobs:
           sha256sum \
             install-security-controls.sh \
             uninstall-security-controls.sh \
-            yubikey-gitsign-toggle.sh \
             .security-controls/bin/pinactlite \
             .security-controls/bin/gitleakslite
 
@@ -166,7 +163,6 @@ jobs:
           # Generate individual checksums
           sha256sum install-security-controls.sh > install-security-controls.sh.sha256
           sha256sum uninstall-security-controls.sh > uninstall-security-controls.sh.sha256
-          sha256sum yubikey-gitsign-toggle.sh > yubikey-gitsign-toggle.sh.sha256
 
           # Create combined checksums file
           cat > checksums.txt <<EOF
@@ -177,7 +173,6 @@ jobs:
           EOF
           cat install-security-controls.sh.sha256 >> checksums.txt
           cat uninstall-security-controls.sh.sha256 >> checksums.txt
-          cat yubikey-gitsign-toggle.sh.sha256 >> checksums.txt
 
           echo ""
           echo "📋 Legacy checksums (for backward compatibility):"
@@ -211,7 +206,6 @@ jobs:
           # Verify checksums
           sha256sum -c install-security-controls.sh.sha256
           sha256sum -c uninstall-security-controls.sh.sha256
-          sha256sum -c yubikey-gitsign-toggle.sh.sha256
 
           echo "✅ All integrity checks passed"
 
@@ -224,8 +218,6 @@ jobs:
             install-security-controls.sh.sha256
             uninstall-security-controls.sh
             uninstall-security-controls.sh.sha256
-            yubikey-gitsign-toggle.sh
-            yubikey-gitsign-toggle.sh.sha256
             .security-controls/bin/pinactlite
             .security-controls/bin/gitleakslite
             checksums.txt
@@ -289,8 +281,6 @@ jobs:
             ./artifacts/install-security-controls.sh.sha256
             ./artifacts/uninstall-security-controls.sh
             ./artifacts/uninstall-security-controls.sh.sha256
-            ./artifacts/yubikey-gitsign-toggle.sh
-            ./artifacts/yubikey-gitsign-toggle.sh.sha256
             ./artifacts/checksums.txt
             ./artifacts/release-hashes-*.txt
             ./artifacts/release-hashes-*.json
@@ -362,7 +352,6 @@ jobs:
             | `install-security-controls.sh.sha256` | SHA256 checksum | `sha256sum -c` |
             | `install-security-controls.sh.intoto.jsonl` | **SLSA provenance** | `slsa-verifier verify-artifact` |
             | `uninstall-security-controls.sh` | Removal script | SHA256 checksum |
-            | `yubikey-gitsign-toggle.sh` | YubiKey signing toggle | SHA256 checksum |
             | `checksums.txt` | Combined checksums | All SHA256 in one file |
             | `release-hashes-*.json` | Hash registry (legacy) | Auto-downloaded by safe-upgrade |
 
