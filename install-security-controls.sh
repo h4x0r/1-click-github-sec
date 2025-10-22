@@ -573,6 +573,40 @@ execute_upgrade_commands() {
     create_backup
     exit 0
   fi
+
+  # AUTO-DETECT EXISTING INSTALLATION (DMMT: Don't Make Me Think)
+  # If security controls already installed, automatically trigger safe upgrade
+  if [[ -f $VERSION_FILE ]]; then
+    local installed_version
+    installed_version=$(get_installed_version)
+
+    # If we detect a different version, auto-run safe-upgrade
+    if [[ $installed_version != "$SCRIPT_VERSION" && $installed_version != "unknown" ]]; then
+      print_status $BLUE "🔄 Existing installation detected (v$installed_version)"
+      print_status $BLUE "   Upgrading to v$SCRIPT_VERSION with modification detection..."
+      echo
+
+      # Check if safe-upgrade script exists
+      local safe_upgrade_script="./scripts/safe-upgrade.sh"
+
+      if [[ -x $safe_upgrade_script ]]; then
+        # Auto-run safe-upgrade (it will handle integrity checks and user decisions)
+        exec "$safe_upgrade_script" --upgrade
+      else
+        # Fallback: warn user but continue with standard upgrade
+        print_status $YELLOW "⚠️  Safe upgrade script not found at $safe_upgrade_script"
+        print_status $BLUE "ℹ️  Proceeding with standard upgrade..."
+        print_status $YELLOW "    (User modifications will be overwritten without prompting)"
+        echo
+        read -rp "Continue with standard upgrade? [y/N]: " confirm
+        if [[ ! $confirm =~ ^[Yy]$ ]]; then
+          print_status $RED "❌ Upgrade cancelled by user"
+          exit 0
+        fi
+        # Continue to normal installation (which will overwrite files)
+      fi
+    fi
+  fi
 }
 
 show_help() {
