@@ -53,6 +53,48 @@ source venv/bin/activate
 
 **That's it!** Your project now has comprehensive security controls.
 
+### 🔐 SLSA Build Level 3 Provenance (v0.6.11+)
+
+**Cryptographic verification using industry-standard SLSA provenance:**
+
+```bash
+# Download installer, checksum, and provenance
+curl -O https://github.com/h4x0r/1-click-github-sec/releases/download/v0.6.11/install-security-controls.sh
+curl -O https://github.com/h4x0r/1-click-github-sec/releases/download/v0.6.11/install-security-controls.sh.sha256
+curl -O https://github.com/h4x0r/1-click-github-sec/releases/download/v0.6.11/multiple.intoto.jsonl
+
+# Option 1: SLSA provenance (RECOMMENDED - cryptographic proof)
+# Install slsa-verifier (https://github.com/slsa-framework/slsa-verifier#installation)
+slsa-verifier verify-artifact \
+  --provenance-path multiple.intoto.jsonl \
+  --source-uri github.com/h4x0r/1-click-github-sec \
+  install-security-controls.sh
+
+# Option 2: SHA256 checksum (LEGACY - backward compatible)
+sha256sum -c install-security-controls.sh.sha256
+
+# Install after verification
+chmod +x install-security-controls.sh
+./install-security-controls.sh
+```
+
+**Why SLSA Provenance is Superior:**
+- ✅ **Cryptographically signed** attestation via Sigstore (non-falsifiable)
+- ✅ **Verifiable build provenance** - proves who, when, and how artifacts were built
+- ✅ **Supply chain transparency** - complete build context and materials included
+- ✅ **SLSA Build Level 3** compliance - industry best practices
+- ✅ **Keyless signing** - same Sigstore infrastructure as our gitsign commit signing
+
+**Legacy SHA256 Limitations:**
+- ⚠️ No cryptographic proof of origin
+- ⚠️ Vulnerable to registry compromise
+- ⚠️ Can't verify build environment or materials
+
+**Learn More:**
+- [SLSA Framework](https://slsa.dev/) - Industry-standard supply chain security
+- [slsa-verifier Tool](https://github.com/slsa-framework/slsa-verifier) - Verification utility
+- [Our SLSA Implementation](https://h4x0r.github.io/1-click-github-sec/slsa-provenance) - Technical details
+
 ---
 
 ## 🎯 What You Get
@@ -77,10 +119,11 @@ source venv/bin/activate
 🔐 **Security advisories** - Vulnerability disclosure workflow
 
 ### Cryptographic Verification
-🔑 **Signed commits** - Every commit cryptographically verified
-🔑 **Signed releases** - All releases signed with Sigstore
-🔑 **Certificate transparency** - Public audit trail via Rekor
-🔑 **Keyless signing** - No GPG key management required
+🔑 **SLSA Build Level 3** - Cryptographically signed build provenance (v0.6.11+)
+🔑 **Signed commits** - Every commit cryptographically verified via gitsign
+🔑 **Signed releases** - Release artifacts with Sigstore provenance
+🔑 **Certificate transparency** - Public audit trail via Rekor transparency log
+🔑 **Keyless signing** - No GPG key management, OIDC-based authentication
 
 ---
 
