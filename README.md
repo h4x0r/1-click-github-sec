@@ -24,14 +24,18 @@ Supports **Rust, Node.js, Python, Go, and generic projects** with 35+ security c
 **Install security controls in your project:**
 
 ```bash
-# Download installer and checksum
-curl -O https://github.com/h4x0r/1-click-github-sec/releases/download/v0.6.10/install-security-controls.sh
-curl -O https://github.com/h4x0r/1-click-github-sec/releases/download/v0.6.10/checksums.txt
+# Download installer and SLSA provenance
+curl -O https://github.com/h4x0r/1-click-github-sec/releases/download/v0.6.11/install-security-controls.sh
+curl -O https://github.com/h4x0r/1-click-github-sec/releases/download/v0.6.11/multiple.intoto.jsonl
 
-# VERIFY checksum before execution (STRONGLY RECOMMENDED - critical security practice)
-sha256sum -c checksums.txt --ignore-missing
+# VERIFY with SLSA provenance (cryptographic proof of authenticity)
+# Install slsa-verifier: https://github.com/slsa-framework/slsa-verifier#installation
+slsa-verifier verify-artifact \
+  --provenance-path multiple.intoto.jsonl \
+  --source-uri github.com/h4x0r/1-click-github-sec \
+  install-security-controls.sh
 
-# Install
+# Install after verification
 chmod +x install-security-controls.sh
 ./install-security-controls.sh
 ```
@@ -51,49 +55,22 @@ source venv/bin/activate
 ./install-security-controls.sh
 ```
 
-**That's it!** Your project now has comprehensive security controls.
+**That's it!** Your project now has comprehensive security controls with cryptographic verification!
 
-### 🔐 SLSA Build Level 3 Provenance (v0.6.11+)
+### 🔐 Why SLSA Build Level 3?
 
-**Cryptographic verification using industry-standard SLSA provenance:**
+**Every release is cryptographically signed with SLSA provenance:**
 
-```bash
-# Download installer, checksum, and provenance
-curl -O https://github.com/h4x0r/1-click-github-sec/releases/download/v0.6.11/install-security-controls.sh
-curl -O https://github.com/h4x0r/1-click-github-sec/releases/download/v0.6.11/install-security-controls.sh.sha256
-curl -O https://github.com/h4x0r/1-click-github-sec/releases/download/v0.6.11/multiple.intoto.jsonl
-
-# Option 1: SLSA provenance (RECOMMENDED - cryptographic proof)
-# Install slsa-verifier (https://github.com/slsa-framework/slsa-verifier#installation)
-slsa-verifier verify-artifact \
-  --provenance-path multiple.intoto.jsonl \
-  --source-uri github.com/h4x0r/1-click-github-sec \
-  install-security-controls.sh
-
-# Option 2: SHA256 checksum (LEGACY - backward compatible)
-sha256sum -c install-security-controls.sh.sha256
-
-# Install after verification
-chmod +x install-security-controls.sh
-./install-security-controls.sh
-```
-
-**Why SLSA Provenance is Superior:**
-- ✅ **Cryptographically signed** attestation via Sigstore (non-falsifiable)
-- ✅ **Verifiable build provenance** - proves who, when, and how artifacts were built
-- ✅ **Supply chain transparency** - complete build context and materials included
-- ✅ **SLSA Build Level 3** compliance - industry best practices
-- ✅ **Keyless signing** - same Sigstore infrastructure as our gitsign commit signing
-
-**Legacy SHA256 Limitations:**
-- ⚠️ No cryptographic proof of origin
-- ⚠️ Vulnerable to registry compromise
-- ⚠️ Can't verify build environment or materials
+- ✅ **Non-falsifiable attestation** - Sigstore cryptographic signing
+- ✅ **Verifiable build provenance** - Proves who, when, and how artifacts were built
+- ✅ **Supply chain transparency** - Complete build context and materials
+- ✅ **Industry standard** - SLSA Build Level 3 compliance
+- ✅ **Zero trust** - Verify don't trust, with public transparency log
 
 **Learn More:**
 - [SLSA Framework](https://slsa.dev/) - Industry-standard supply chain security
 - [slsa-verifier Tool](https://github.com/slsa-framework/slsa-verifier) - Verification utility
-- [Our SLSA Implementation](https://h4x0r.github.io/1-click-github-sec/slsa-provenance) - Technical details
+- [Our Implementation](https://h4x0r.github.io/1-click-github-sec/slsa-provenance) - Technical details
 
 ---
 

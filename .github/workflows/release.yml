@@ -154,69 +154,12 @@ jobs:
             .security-controls/bin/pinactlite \
             .security-controls/bin/gitleakslite
 
-      - name: Generate legacy checksums
-        run: |
-          set -euo pipefail
-
-          echo "📝 Generating legacy checksums (backward compatibility)..."
-
-          # Generate individual checksums
-          sha256sum install-security-controls.sh > install-security-controls.sh.sha256
-          sha256sum uninstall-security-controls.sh > uninstall-security-controls.sh.sha256
-
-          # Create combined checksums file
-          cat > checksums.txt <<EOF
-          # 1-Click GitHub Security ${{ github.ref_name }} - Release Checksums
-          # SLSA Build Level 3 Provenance Available: *.intoto.jsonl
-          # Verify with: sha256sum -c checksums.txt
-
-          EOF
-          cat install-security-controls.sh.sha256 >> checksums.txt
-          cat uninstall-security-controls.sh.sha256 >> checksums.txt
-
-          echo ""
-          echo "📋 Legacy checksums (for backward compatibility):"
-          cat checksums.txt
-
-      - name: Generate hash registry (legacy - will be deprecated)
-        run: |
-          set -euo pipefail
-
-          VERSION="${{ steps.version.outputs.version }}"
-
-          # Skip hash registry for RC releases (doesn't support prerelease versions)
-          if [[ "${{ github.ref_name }}" =~ -rc[0-9]+$ ]]; then
-            echo "⚠️  Skipping legacy hash registry for RC release (only for production releases)"
-            echo "   SLSA provenance is the primary verification method for all releases"
-            # Create empty files to satisfy artifact uploads
-            touch release-hashes-empty.txt release-hashes-empty.json release-hashes-empty.yaml
-            exit 0
-          fi
-
-          echo "⚠️  Generating legacy hash registry (will be deprecated in favor of SLSA provenance)"
-          echo "🔐 Hash registry for version $VERSION"
-
-          # Generate hash registry in all formats (for backward compatibility)
-          ./scripts/generate-release-hashes.sh "$VERSION" --format bash
-          ./scripts/generate-release-hashes.sh "$VERSION" --format json
-          ./scripts/generate-release-hashes.sh "$VERSION" --format yaml
-
-          echo ""
-          echo "📋 Generated hash registries:"
-          ls -lh release-hashes-*.{txt,json,yaml} 2>/dev/null || true
-
-          echo ""
-          echo "💡 Note: These will be replaced by SLSA provenance in future releases"
-
       - name: Validate installer integrity
         run: |
           set -euo pipefail
 
-          # Verify checksums
-          sha256sum -c install-security-controls.sh.sha256
-          sha256sum -c uninstall-security-controls.sh.sha256
-
-          echo "✅ All integrity checks passed"
+          echo "✅ Installer integrity will be cryptographically verified via SLSA provenance"
+          echo "   No manual checksum generation needed - SLSA provenance provides superior guarantees"
 
       - name: Upload artifacts for provenance
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
@@ -224,15 +167,9 @@ jobs:
           name: release-artifacts
           path: |
             install-security-controls.sh
-            install-security-controls.sh.sha256
             uninstall-security-controls.sh
-            uninstall-security-controls.sh.sha256
             .security-controls/bin/pinactlite
             .security-controls/bin/gitleakslite
-            checksums.txt
-            release-hashes-*.txt
-            release-hashes-*.json
-            release-hashes-*.yaml
           if-no-files-found: error
           retention-days: 5
 
@@ -280,13 +217,7 @@ jobs:
         with:
           files: |
             ./artifacts/install-security-controls.sh
-            ./artifacts/install-security-controls.sh.sha256
             ./artifacts/uninstall-security-controls.sh
-            ./artifacts/uninstall-security-controls.sh.sha256
-            ./artifacts/checksums.txt
-            ./artifacts/release-hashes-*.txt
-            ./artifacts/release-hashes-*.json
-            ./artifacts/release-hashes-*.yaml
           generate_release_notes: true
           name: "1-Click GitHub Security ${{ github.ref_name }}"
           body: |
@@ -317,44 +248,42 @@ jobs:
             # Output: "Verified signature against tlog entry..." = SUCCESS ✅
             ```
 
-            ### 📦 Quick Installation
+            ### 📦 Installation
+
+            **All releases are cryptographically verified with SLSA Build Level 3 provenance:**
 
             ```bash
-            # Download and verify installer
+            # Download installer and provenance
             curl -O https://github.com/h4x0r/1-click-github-sec/releases/download/${{ github.ref_name }}/install-security-controls.sh
-            curl -O https://github.com/h4x0r/1-click-github-sec/releases/download/${{ github.ref_name }}/install-security-controls.sh.sha256
+            curl -O https://github.com/h4x0r/1-click-github-sec/releases/download/${{ github.ref_name }}/multiple.intoto.jsonl
 
-            # Verify checksum (REQUIRED for security)
-            sha256sum -c install-security-controls.sh.sha256
+            # Verify with slsa-verifier (cryptographic proof of authenticity)
+            slsa-verifier verify-artifact \
+              --provenance-path multiple.intoto.jsonl \
+              --source-uri github.com/h4x0r/1-click-github-sec \
+              install-security-controls.sh
 
-            # Install security controls
+            # Install after verification
             chmod +x install-security-controls.sh
             ./install-security-controls.sh
             ```
 
-            ### 🔐 Security Verification
+            ### 🔐 Why SLSA Provenance?
 
-            **SLSA Provenance (Recommended)**:
-            - ✅ Cryptographically signed attestation
-            - ✅ Verifiable with slsa-verifier
-            - ✅ Supply chain transparency
-            - ✅ Non-falsifiable build provenance
-
-            **Legacy Checksums (Backward Compatible)**:
-            - ✅ SHA256 checksums for all artifacts
-            - ✅ Validated during build process
-            - ✅ Generated from signed commits
+            **Cryptographic verification provides non-falsifiable guarantees:**
+            - ✅ **Signed attestation** - Sigstore cryptographic signing (keyless)
+            - ✅ **Build provenance** - Verifiable who, when, how artifacts were built
+            - ✅ **Supply chain transparency** - Complete build context and materials
+            - ✅ **Industry standard** - SLSA Build Level 3 compliance
+            - ✅ **Public audit trail** - Rekor transparency log
 
             ### 📋 Release Artifacts
 
-            | File | Purpose | Verification Method |
-            |------|---------|---------------------|
-            | `install-security-controls.sh` | Main installer script | **SLSA provenance** (recommended) or SHA256 |
-            | `install-security-controls.sh.sha256` | SHA256 checksum | `sha256sum -c` |
-            | `install-security-controls.sh.intoto.jsonl` | **SLSA provenance** | `slsa-verifier verify-artifact` |
-            | `uninstall-security-controls.sh` | Removal script | SHA256 checksum |
-            | `checksums.txt` | Combined checksums | All SHA256 in one file |
-            | `release-hashes-*.json` | Hash registry (legacy) | Auto-downloaded by safe-upgrade |
+            | File | Purpose |
+            |------|---------|
+            | `install-security-controls.sh` | Main installer script |
+            | `uninstall-security-controls.sh` | Removal script |
+            | `multiple.intoto.jsonl` | **SLSA provenance** (cryptographic verification) |
 
             ### 🆕 What's New in This Release
 

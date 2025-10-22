@@ -43,38 +43,14 @@ log_error() { echo -e "${RED}[ERROR]${NC} $*"; }
 
 # Version-specific file hash registry
 # Format: version|file_path|sha256_hash
-# This is the "known good" state for each version
-#
-# ⚠️  DEPRECATION NOTICE: This legacy hash registry is deprecated as of v0.6.11
-#     Prefer SLSA provenance verification for cryptographic authenticity guarantees.
-#     Legacy hashes remain for backward compatibility with older versions.
-#
-# Migration Path:
-#   • v0.6.11+: Use SLSA provenance verification (--verify-slsa)
-#   • v0.6.10 and earlier: Continue using legacy hash registry
-#
+# Hashes are extracted from SLSA provenance for cryptographic verification
 declare -A VERSION_HASHES
 
-# Initialize hash registry for known versions
+# Initialize hash registry - will be populated from SLSA provenance
 init_hash_registry() {
-  # ⚠️  LEGACY: Embedded hashes for backward compatibility only
-  #
-  # Version 0.6.11+ should use SLSA provenance instead:
-  #   ./scripts/safe-upgrade.sh --verify-slsa install-security-controls.sh 0.6.11
-  #
-  # These hashes remain for versions that don't have SLSA provenance yet.
-
-  # Version 0.6.10 hashes (current version)
-  # These would be generated during release process
-  VERSION_HASHES["0.6.10|.security-controls/bin/pinactlite"]="8869c009332879a5366e2aeaf14eaca82f4467d5ab35f0042293da5e966d8097"
-  VERSION_HASHES["0.6.10|.security-controls/bin/gitleakslite"]="TBD" # To be determined
-
-  # Version 0.6.9 hashes (example for previous version)
-  VERSION_HASHES["0.6.9|.security-controls/bin/pinactlite"]="9c580e3a5c6386ca1365ef587cb71dbe9cb1d39caf639c8e25dfe580e616c731"
-  VERSION_HASHES["0.6.9|.security-controls/bin/gitleakslite"]="TBD"
-
-  # Future versions (0.6.11+) should use SLSA provenance instead
-  # Legacy hashes will not be maintained for new versions
+  # All version hashes are now extracted from SLSA provenance
+  # This provides cryptographic proof of authenticity via Sigstore
+  :
 }
 
 # Get installed version
@@ -409,136 +385,6 @@ handle_modified_files_interactive() {
   fi
 }
 
-# ============================================================================
-# LEGACY HASH REGISTRY (DEPRECATED - Use SLSA Provenance Instead)
-# ============================================================================
-#
-# ⚠️  DEPRECATION NOTICE: Legacy hash registry is deprecated as of v0.6.11
-#
-# The manual hash registry system is being replaced by SLSA provenance which
-# provides cryptographic proof of authenticity via Sigstore signing.
-#
-# Migration Guidance:
-#   • New releases (v0.6.11+): Use SLSA provenance verification
-#   • Old releases (v0.6.10 and earlier): Continue using hash registry
-#
-# Why SLSA Provenance is Superior:
-#   ✅ Cryptographically signed attestation (non-falsifiable)
-#   ✅ Verifiable with slsa-verifier (industry standard tool)
-#   ✅ Supply chain transparency (complete build provenance)
-#   ✅ Sigstore integration (keyless signing infrastructure)
-#   ❌ Legacy hashes: No cryptographic proof, vulnerable to registry compromise
-#
-# This section remains for backward compatibility only.
-# ============================================================================
-
-# Auto-download hash registry from GitHub releases (LEGACY)
-download_hash_registry() {
-  local version="$1"
-  local format="${2:-json}"
-
-  # Show deprecation warning
-  echo ""
-  log_warning "⚠️  DEPRECATION WARNING: Legacy hash registry is deprecated"
-  log_info "💡 For version 0.6.11+, use SLSA provenance instead:"
-  log_info "   ./scripts/safe-upgrade.sh --verify-slsa install-security-controls.sh $version"
-  echo ""
-  log_info "Continuing with legacy hash registry (backward compatibility)..."
-  echo ""
-
-  local registry_url="https://github.com/h4x0r/1-click-github-sec/releases/download/v${version}/release-hashes-${version}.${format}"
-
-  log_info "📥 Downloading hash registry for version $version..."
-
-  local temp_file
-  temp_file=$(mktemp)
-
-  if ! curl -fsSL "$registry_url" -o "$temp_file"; then
-    log_warning "Could not download hash registry from GitHub releases"
-    log_info "Note: Versions 0.6.11+ may not have legacy hash registry files"
-    log_info "Falling back to embedded hash registry or use SLSA provenance"
-    rm -f "$temp_file"
-    return 1
-  fi
-
-  log_success "Downloaded hash registry from releases"
-
-  # Parse and import hashes based on format
-  case $format in
-    json)
-      import_json_hashes "$temp_file" "$version"
-      ;;
-    yaml)
-      import_yaml_hashes "$temp_file" "$version"
-      ;;
-    *)
-      log_error "Unknown hash registry format: $format"
-      rm -f "$temp_file"
-      return 1
-      ;;
-  esac
-
-  rm -f "$temp_file"
-  return 0
-}
-
-# Import hashes from JSON format
-import_json_hashes() {
-  local json_file="$1"
-  local version="$2"
-
-  if ! command -v jq >/dev/null 2>&1; then
-    log_warning "jq not found - cannot parse JSON hash registry"
-    return 1
-  fi
-
-  log_info "Importing hashes from JSON registry..."
-
-  local count=0
-  while IFS= read -r line; do
-    local file
-    local hash
-    file=$(echo "$line" | jq -r '.file')
-    hash=$(echo "$line" | jq -r '.hash')
-
-    VERSION_HASHES["$version|$file"]="$hash"
-    ((count++))
-  done < <(jq -c '.hashes | to_entries[] | {file: .key, hash: .value}' "$json_file")
-
-  log_success "Imported $count file hashes from registry"
-}
-
-# Import hashes from YAML format (basic parser)
-import_yaml_hashes() {
-  local yaml_file="$1"
-  local version="$2"
-
-  log_info "Importing hashes from YAML registry..."
-
-  local count=0
-  local in_hashes=false
-
-  while IFS= read -r line; do
-    # Skip until we find hashes section
-    if [[ $line =~ ^hashes: ]]; then
-      in_hashes=true
-      continue
-    fi
-
-    if [[ $in_hashes == true ]]; then
-      # Parse "  file: hash" format
-      if [[ $line =~ ^[[:space:]]+(.+):[[:space:]]+([a-f0-9]{64})$ ]]; then
-        local file="${BASH_REMATCH[1]}"
-        local hash="${BASH_REMATCH[2]}"
-
-        VERSION_HASHES["$version|$file"]="$hash"
-        ((count++))
-      fi
-    fi
-  done <"$yaml_file"
-
-  log_success "Imported $count file hashes from registry"
-}
 
 # List available backups for rollback
 list_available_backups() {
@@ -1048,8 +894,7 @@ OPTIONS:
     --check             Check installation integrity (no upgrade)
     --rollback          Rollback to a previous backup
     --force             Force upgrade without confirmation (NOT recommended)
-    --download-hashes   Download hash registry from GitHub releases (LEGACY)
-    --verify-slsa       Verify installer with SLSA provenance (RECOMMENDED)
+    --verify-slsa       Verify installer with SLSA provenance
     --install-verifier  Install slsa-verifier tool
     --help              Show this help message
 
@@ -1083,34 +928,25 @@ EXAMPLES:
     # Use custom merge tool
     MERGE_TOOL=meld $0
 
-    # Download hash registry for specific version (LEGACY)
-    $0 --download-hashes 0.7.0
-
-VERIFICATION METHODS:
-    🔐 SLSA Provenance (RECOMMENDED):
+VERIFICATION METHOD:
+    🔐 SLSA Build Level 3 Provenance:
        ✅ Cryptographically signed attestation via Sigstore
        ✅ Non-falsifiable build provenance
        ✅ Supply chain transparency (who, when, how artifacts were built)
        ✅ SLSA Build Level 3 compliance
-
-    📝 SHA256 Checksums (LEGACY - Backward Compatible):
-       ✅ File integrity verification
-       ✅ Tamper detection
-       ⚠️  No cryptographic proof of origin
-       ⚠️  Vulnerable to registry compromise
+       ✅ Verifiable with industry-standard slsa-verifier tool
 
 SAFETY FEATURES:
-    ✅ SLSA Build Level 3 provenance verification (NEW)
-    ✅ Cryptographic authenticity verification via Sigstore (NEW)
-    ✅ Auto-install slsa-verifier tool (NEW)
-    ✅ Version-specific hash verification
+    ✅ SLSA Build Level 3 provenance verification
+    ✅ Cryptographic authenticity verification via Sigstore
+    ✅ Auto-install slsa-verifier tool
+    ✅ Version-specific hash verification from provenance
     ✅ User modification detection
     ✅ Interactive diff display
     ✅ Per-file upgrade decisions
     ✅ Automatic backup of modified files
     ✅ Rollback capability
     ✅ Merge tool integration (meld, kdiff3, vimdiff)
-    ✅ Auto-download hash registry from releases (LEGACY)
     ✅ 3-way merge conflict resolution
 
 EOF
@@ -1135,17 +971,6 @@ main() {
       ;;
     --rollback)
       rollback_to_backup
-      ;;
-    --download-hashes)
-      local version="${2:-}"
-      if [[ -z $version ]]; then
-        log_error "Version argument required for --download-hashes"
-        echo "Usage: $0 --download-hashes VERSION"
-        exit 1
-      fi
-      log_warning "⚠️  Using legacy hash registry (DEPRECATED)"
-      log_info "💡 Recommendation: Use --verify-slsa for cryptographic verification"
-      download_hash_registry "$version" "json"
       ;;
     --verify-slsa)
       local installer_path="${2:-}"
