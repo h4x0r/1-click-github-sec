@@ -590,8 +590,8 @@ execute_upgrade_commands() {
       local safe_upgrade_script="./scripts/safe-upgrade.sh"
 
       if [[ -x $safe_upgrade_script ]]; then
-        # Auto-run safe-upgrade (it will handle integrity checks and user decisions)
-        exec "$safe_upgrade_script" --upgrade
+        # Auto-run safe-upgrade (default behavior is safe upgrade)
+        exec "$safe_upgrade_script"
       else
         # Fallback: warn user but continue with standard upgrade
         print_status $YELLOW "⚠️  Safe upgrade script not found at $safe_upgrade_script"

@@ -6,7 +6,8 @@
 # safe-upgrade.sh - Safe Upgrade System for Security Controls
 # Verifies file integrity before upgrade and detects user modifications
 #
-# Usage: ./scripts/safe-upgrade.sh [--check|--upgrade|--force]
+# Usage: ./scripts/safe-upgrade.sh [OPTIONS]
+#        Default: Performs safe upgrade with user confirmation
 #
 # Features:
 # - Version detection of existing installation
@@ -760,8 +761,8 @@ DESCRIPTION:
     handling of customized files.
 
 OPTIONS:
+    (no args)           Perform safe upgrade with user confirmation (DEFAULT)
     --check             Check installation integrity (no upgrade)
-    --upgrade           Perform safe upgrade with user confirmation
     --rollback          Rollback to a previous backup
     --force             Force upgrade without confirmation (NOT recommended)
     --download-hashes   Download hash registry from GitHub releases
@@ -782,13 +783,13 @@ WORKFLOW:
     8. Verify new installation
 
 EXAMPLES:
+    $0                  # Safe upgrade with interactive prompts (DEFAULT)
     $0 --check          # Check current installation integrity
-    $0 --upgrade        # Safe upgrade with interactive prompts
     $0 --rollback       # Restore from previous backup
     $0 --force          # Force upgrade (skips confirmations)
 
     # Use custom merge tool
-    MERGE_TOOL=meld $0 --upgrade
+    MERGE_TOOL=meld $0
 
     # Download hash registry for specific version
     $0 --download-hashes 0.7.0
@@ -824,9 +825,6 @@ main() {
     --check)
       verify_installation_integrity
       ;;
-    --upgrade)
-      safe_upgrade false
-      ;;
     --rollback)
       rollback_to_backup
       ;;
@@ -844,8 +842,8 @@ main() {
       safe_upgrade true
       ;;
     "")
-      log_error "No option specified. Use --help for usage."
-      exit 1
+      # DEFAULT: Perform safe upgrade when no args provided
+      safe_upgrade false
       ;;
     *)
       log_error "Unknown option: $mode"
