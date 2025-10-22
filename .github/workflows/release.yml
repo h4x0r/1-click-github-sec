@@ -208,7 +208,7 @@ jobs:
           echo "✅ All integrity checks passed"
 
       - name: Upload artifacts for provenance
-        uses: actions/upload-artifact@ea165f8792c99f61f6e3e07b84e6e1c55f68d44e # v4.6.0
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: release-artifacts
           path: |
@@ -254,13 +254,13 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Download build artifacts
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90bce6e0eb09 # v4.2.0
+        uses: actions/download-artifact@b14cf4c92620c250e1c074ab0a5800e37df86765 # v4.2.0
         with:
           name: release-artifacts
           path: ./artifacts
 
       - name: Download SLSA provenance
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90bce6e0eb09 # v4.2.0
+        uses: actions/download-artifact@b14cf4c92620c250e1c074ab0a5800e37df86765 # v4.2.0
         with:
           name: ${{ needs.provenance.outputs.provenance-name }}
           path: ./provenance
