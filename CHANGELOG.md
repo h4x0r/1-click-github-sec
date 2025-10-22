@@ -5,6 +5,65 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.11] - 2025-10-22
+
+### 🔐 SLSA Build Level 3 Provenance (Supply Chain Security)
+
+**CRYPTOGRAPHIC VERIFICATION RELEASE** - Complete SLSA Build Level 3 implementation with simplified verification workflow.
+
+### SLSA Provenance Implementation
+- **🏆 SLSA Build Level 3**: Industry-standard supply chain security compliance
+- **🔑 Sigstore Signing**: Cryptographically signed build provenance using keyless signing
+- **📋 Complete Build Context**: Verifiable who, when, and how artifacts were built
+- **🔍 Supply Chain Transparency**: Public audit trail via Rekor transparency log
+- **🎯 Simplified Verification**: Single verification method (SLSA-only, no legacy checksums)
+
+### Release Workflow Enhancements
+- **Three-Job Architecture**: Build → Provenance → Release
+- **slsa-github-generator@v2.1.0**: Official SLSA provenance generator integration
+- **Automatic Provenance Upload**: `upload-assets: true` for seamless release creation
+- **Base64 Hash Encoding**: Secure artifact hash passing between workflow jobs
+- **Prerelease Support**: RC releases with `-rcN` suffix validation
+
+### Verification Simplification
+- **Removed Legacy Checksums**: Eliminated ~150 lines of hash registry code
+- **SLSA-Only Documentation**: Clear, single-method verification instructions
+- **slsa-verifier Integration**: Official verification tool (v2.7.1)
+- **Enhanced Release Notes**: Comprehensive SLSA verification examples
+
+### Technical Improvements
+- **Pinactlite v1.1.0 Exception**: Reusable workflow support for SLSA generator
+- **QA Workflow Skip**: RC releases bypass QA due to pinact reusable workflow limitation
+- **Provenance Structure**: DSSE envelope format with embedded subject array
+- **Hash Verification**: SHA256 digests extracted from SLSA provenance
+
+### Breaking Changes
+- **No Backward Compatibility**: Legacy SHA256 checksums removed (never publicly released)
+- **SLSA-Only Verification**: All releases must be verified with slsa-verifier
+- **Hash Registry Removed**: No more JSON/YAML hash registry files
+
+### Migration Guide
+```bash
+# Old method (removed):
+curl -O checksums.txt
+sha256sum -c checksums.txt
+
+# New method (SLSA Build Level 3):
+curl -O install-security-controls.sh
+curl -O multiple.intoto.jsonl
+slsa-verifier verify-artifact \
+  --provenance-path multiple.intoto.jsonl \
+  --source-uri github.com/h4x0r/1-click-github-sec \
+  install-security-controls.sh
+```
+
+### Benefits
+- **Non-Falsifiable Attestation**: Cryptographic proof of authenticity
+- **Industry Standard**: SLSA Build Level 3 compliance
+- **Zero Trust**: Verify, don't trust
+- **Simpler Codebase**: -212 lines (removed 269, added 57)
+- **Clearer Documentation**: Single verification method
+
 ## [0.6.10] - 2025-09-29
 
 ### 🔗 Link Validation & Deployment Framework
