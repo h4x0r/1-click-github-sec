@@ -377,56 +377,237 @@ echo "Add these to scripts/safe-upgrade.sh init_hash_registry() function"
 
 **Backup Contents**: Backups may contain sensitive customizations. Stored in `.security-controls/backup/` (gitignored).
 
-## Future Enhancements
+## Implemented Enhancements
 
-### Automatic Hash Registry Updates
+### ✅ Automatic Hash Registry Downloads
+
+**Status**: Implemented in v0.7.0
+
+Download version-specific hash registries from GitHub releases:
 
 ```bash
-# Proposed: Auto-download hash registry from GitHub releases
-download_hash_registry() {
-  local version="$1"
-  local registry_url="https://github.com/h4x0r/1-click-github-sec/releases/download/v${version}/hashes.txt"
+$ ./scripts/safe-upgrade.sh --download-hashes 0.7.0
 
-  curl -sSL "$registry_url" -o "/tmp/hashes-${version}.txt"
-  # Verify signature
-  # Import into hash registry
+📥 Downloading hash registry for version 0.7.0...
+✅ Downloaded hash registry from releases
+✅ Importing hashes from JSON registry...
+✅ Imported 5 file hashes from registry
+
+# Auto-fallback to embedded hashes if download fails
+⚠️ Could not download hash registry from GitHub releases
+ℹ️ Falling back to embedded hash registry
+```
+
+**Implementation**: `download_hash_registry()` function
+- Fetches from: `https://github.com/h4x0r/1-click-github-sec/releases/download/v{VERSION}/release-hashes-{VERSION}.json`
+- Supports JSON and YAML formats
+- Automatic fallback to embedded hashes
+- Uses `jq` for JSON parsing (optional dependency)
+
+### ✅ Rollback Capability
+
+**Status**: Implemented in v0.7.0
+
+Restore from previous backups interactively:
+
+```bash
+$ ./scripts/safe-upgrade.sh --rollback
+
+🔄 Rollback Wizard
+
+📦 Available backups:
+
+  1. Backup from 2025-10-21 21:15:00 (3 files)
+  2. Backup from 2025-10-15 14:30:00 (3 files)
+
+Choose backup to restore [1-2] or 'q' to quit: 1
+
+Selected backup timestamp: 20251021_211500
+
+Files to restore:
+  • pinactlite
+  • gitleakslite
+  • pre-push
+
+Restore these files? [y/N]: y
+
+Restoring backup...
+✅ Restored .security-controls/bin/pinactlite
+✅ Restored .security-controls/bin/gitleakslite
+✅ Restored .git/hooks/pre-push
+
+✅ Rollback completed
+
+💡 Tip: Run --check to verify restored installation
+```
+
+**Implementation**: `rollback_to_backup()` function
+- Lists timestamped backups from `.security-controls/backup/`
+- Groups files by backup timestamp
+- Interactive selection with confirmation
+- Restores all files from selected backup
+- Verification suggested after rollback
+
+### ✅ Merge Tool Integration
+
+**Status**: Implemented in v0.7.0
+
+Use visual merge tools to resolve conflicts:
+
+```bash
+$ MERGE_TOOL=meld ./scripts/safe-upgrade.sh --upgrade
+
+⚠️  File modified: .git/hooks/pre-push
+
+📝 Changes detected:
+  [diff display]
+
+What would you like to do?
+  1. Keep my version (skip upgrade for this file)
+  2. Replace with new version (your changes will be lost)
+  3. Backup my version and install new version
+  4. Use merge tool to combine changes interactively
+
+Choose option [1/2/3/4]: 4
+
+Launching meld for 3-way merge...
+
+Instructions:
+  • LEFT: Your current version
+  • RIGHT: New version from upgrade
+  • Save merged result and exit merge tool to continue
+
+[meld opens with 3-pane view]
+
+✅ Merge completed
+✅ Backed up to: .security-controls/backup/pre-push.20251021_211500.backup
+✅ Installed merged version
+```
+
+**Implementation**: `merge_with_tool()` and `handle_modified_file_with_merge()` functions
+- Auto-detects: meld, kdiff3, vimdiff (in preference order)
+- Environment variable: `MERGE_TOOL` for manual selection
+- 3-way merge support (base, current, new)
+- Automatic backup before applying merge
+- Merge result validation
+
+**Supported Merge Tools**:
+| Tool | Type | Auto-Merge | Visual | Installation |
+|------|------|-----------|--------|--------------|
+| **meld** | GUI | Partial | ✅ | `brew install meld` |
+| **kdiff3** | GUI | Yes | ✅ | `brew install kdiff3` |
+| **vimdiff** | TUI | No | 🟡 | Built-in with vim |
+
+### ✅ Automated Hash Registry Generation
+
+**Status**: Implemented in v0.7.0
+
+Generate version-specific hash registries for releases:
+
+```bash
+$ ./scripts/generate-release-hashes.sh 0.7.0 --format json
+
+✅ Valid version format: 0.7.0
+🔐 Generating release hash registry for version 0.7.0
+Format: json
+Output: release-hashes-0.7.0.json
+
+Calculating file hashes...
+✅ .security-controls/bin/pinactlite
+✅ .security-controls/bin/gitleakslite
+✅ install-security-controls.sh
+✅ uninstall-security-controls.sh
+✅ yubikey-gitsign-toggle.sh
+
+✅ Generated JSON format with 5 files
+
+Signing manifest with GPG...
+✅ Created signature: release-hashes-0.7.0.json.asc
+
+✅ Hash registry generated: release-hashes-0.7.0.json
+
+📋 Integration Instructions:
+   1. Include in GitHub release:
+      $ gh release upload v0.7.0 release-hashes-0.7.0.json
+
+   2. Safe upgrade will auto-download from:
+      https://github.com/h4x0r/1-click-github-sec/releases/download/v0.7.0/release-hashes-0.7.0.json
+
+💡 Next Steps:
+   • Commit hash registry to repository
+   • Tag release: git tag -s v0.7.0 -m 'Release v0.7.0'
+   • Push release: git push origin v0.7.0
+   • Create GitHub release with hash registry attached
+```
+
+**Implementation**: `scripts/generate-release-hashes.sh`
+- Multiple formats: bash (for embedding), json (API), yaml (docs)
+- Semantic version validation
+- GPG signature generation (optional)
+- SHA256 hash calculation for all managed files
+- Integration instructions
+- Release workflow guidance
+
+**Output Formats**:
+```json
+// JSON format (release-hashes-0.7.0.json)
+{
+  "version": "0.7.0",
+  "generated": "2025-10-22T03:15:00Z",
+  "repository": "https://github.com/h4x0r/1-click-github-sec",
+  "hashes": {
+    ".security-controls/bin/pinactlite": "1fa109bc...",
+    ".security-controls/bin/gitleakslite": "a1b2c3d4...",
+    ...
+  }
 }
 ```
 
-### Rollback Capability
-
-```bash
-# Proposed: Rollback to previous version
-./scripts/safe-upgrade.sh --rollback
-
-🔄 Available backups:
-  1. Version 0.6.10 (backup from 2025-10-21 21:15:00)
-  2. Version 0.6.9  (backup from 2025-10-15 14:30:00)
-
-Choose backup to restore [1/2]: 1
-✅ Rolled back to version 0.6.10
+```yaml
+# YAML format (release-hashes-0.7.0.yaml)
+version: 0.7.0
+generated: 2025-10-22T03:15:00Z
+repository: https://github.com/h4x0r/1-click-github-sec
+hashes:
+  .security-controls/bin/pinactlite: 1fa109bc...
+  .security-controls/bin/gitleakslite: a1b2c3d4...
 ```
 
-### Merge Tool Integration
+```bash
+# Bash format (release-hashes-0.7.0.txt)
+# Ready for copy/paste into safe-upgrade.sh
+VERSION_HASHES["0.7.0|.security-controls/bin/pinactlite"]="1fa109bc..."
+VERSION_HASHES["0.7.0|.security-controls/bin/gitleakslite"]="a1b2c3d4..."
+```
+
+## Future Enhancements (Proposed)
+
+### Differential Hash Updates
+
+Only download hash diff between versions instead of full registry:
 
 ```bash
-# Proposed: Use merge tools for conflict resolution
-export UPGRADE_MERGE_TOOL="meld"  # or vimdiff, kdiff3, etc.
+# Proposed: Fetch only new/changed hashes
+download_hash_diff() {
+  local from_version="$1"
+  local to_version="$2"
 
-# When modifications detected:
-📝 Changes detected in .git/hooks/pre-push
+  # Download differential update
+  curl -sSL "https://.../v${to_version}/hash-diff-${from_version}-to-${to_version}.json"
+}
+```
 
-Launch merge tool to resolve conflicts? [y/N]: y
-🛠️ Launching meld...
+### Smart Conflict Resolution
 
-  ┌─────────────┬─────────────┬─────────────┐
-  │ Your        │   Common    │    New      │
-  │ Version     │   Ancestor  │   Version   │
-  └─────────────┴─────────────┴─────────────┘
+Use AI/ML to suggest conflict resolutions:
 
-# User manually merges changes
-✅ Merge completed
-✅ Saved merged version
+```bash
+# Proposed: AI-assisted merge suggestions
+analyze_conflict() {
+  # Analyze both versions
+  # Suggest safe merge strategy
+  # Highlight potential issues
+}
 ```
 
 ## Related Documentation
