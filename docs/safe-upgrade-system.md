@@ -14,20 +14,21 @@ The Safe Upgrade System provides **integrity verification and user modification 
 - Adjusted pinactlite allowlists for trusted actions
 - Modified workflow templates for CI/CD requirements
 
-**Without Safe Upgrade**:
+**Without Safe Upgrade** (old behavior):
 ```bash
 # User customizes pre-push hook
 $ edit .git/hooks/pre-push  # Add project-specific checks
 
-# Runs upgrade
-$ ./install-security-controls.sh --upgrade
+# Runs manual upgrade script
+$ ./install-security-controls.sh --force  # bypasses safe upgrade
 
 # ❌ Customizations lost - no warning!
 ```
 
-**With Safe Upgrade**:
+**With Safe Upgrade** (automatic):
 ```bash
-$ ./scripts/safe-upgrade.sh --upgrade
+# User just runs installer again
+$ ./install-security-controls.sh
 
 🔍 Checking for user modifications...
 ⚠️  File modified: .git/hooks/pre-push
@@ -163,6 +164,40 @@ VERSION_HASHES["0.6.9|.security-controls/bin/pinactlite"]="9c580e3a..."
 
 ## Usage
 
+### Automatic Upgrade Detection (DMMT)
+
+**Don't Make Me Think**: The installer automatically detects existing installations and triggers safe upgrade.
+
+```bash
+# User just runs installer - system detects it's an upgrade
+$ ./install-security-controls.sh
+
+🔄 Existing installation detected (v0.6.9)
+   Upgrading to v0.6.10 with modification detection...
+
+🔍 Checking for user modifications...
+⚠️  File modified: .git/hooks/pre-push
+
+# Interactive workflow begins automatically...
+```
+
+**How It Works**:
+1. Installer checks for `.security-controls-version` file
+2. If version ≠ installer version → auto-run safe-upgrade
+3. Safe upgrade handles integrity checks and user decisions
+4. No manual script execution needed
+
+### Manual Safe Upgrade
+
+You can also run safe-upgrade directly (default behavior):
+
+```bash
+# Safe upgrade with user confirmation (DEFAULT)
+$ ./scripts/safe-upgrade.sh
+
+# Same as above - safe upgrade is default when no args
+```
+
 ### Check Installation Integrity
 
 Verify current installation without upgrading:
@@ -188,12 +223,12 @@ $ ./scripts/safe-upgrade.sh --check
    • .git/hooks/pre-push
 ```
 
-### Safe Interactive Upgrade
+### Interactive Upgrade Workflow
 
-Upgrade with modification detection and user decisions:
+When safe-upgrade runs (automatically or manually), it provides interactive decisions:
 
 ```bash
-$ ./scripts/safe-upgrade.sh --upgrade
+$ ./scripts/safe-upgrade.sh  # or just run installer
 
 🔄 Starting safe upgrade process...
 
@@ -273,86 +308,122 @@ $ ./scripts/safe-upgrade.sh --force
 
 ## Implementation in Installer
 
-### Integration Points
+### Automatic Upgrade Detection
 
-The safe upgrade system integrates with `install-security-controls.sh`:
+The installer **automatically detects** existing installations and triggers safe upgrade:
 
 ```bash
-# In install-security-controls.sh
+# In install-security-controls.sh - execute_upgrade_commands()
 
-# 1. Record version and file hashes during installation
-record_installation_metadata() {
-  local version="$SCRIPT_VERSION"
+# AUTO-DETECT EXISTING INSTALLATION (DMMT: Don't Make Me Think)
+if [[ -f $VERSION_FILE ]]; then
+  installed_version=$(get_installed_version)
 
-  # Write version file
-  cat > "$CONTROL_STATE_DIR/.version" <<EOF
-version="$version"
-installer_version="$version"
-install_date="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-EOF
+  # If we detect a different version, auto-run safe-upgrade
+  if [[ $installed_version != "$SCRIPT_VERSION" && $installed_version != "unknown" ]]; then
+    print_status $BLUE "🔄 Existing installation detected (v$installed_version)"
+    print_status $BLUE "   Upgrading to v$SCRIPT_VERSION with modification detection..."
 
-  # Record file hashes
-  cat > "$CONTROL_STATE_DIR/.file-hashes" <<EOF
-# Installation file hashes for version $version
-$(sha256sum .security-controls/bin/pinactlite)
-$(sha256sum .security-controls/bin/gitleakslite)
-$(sha256sum .git/hooks/pre-push)
-$(sha256sum .git/hooks/pre-commit)
-EOF
-}
-
-# 2. Check for existing installation before upgrade
-check_existing_installation() {
-  if [[ -f "$CONTROL_STATE_DIR/.version" ]]; then
-    local current_version
-    current_version=$(grep "version=" "$CONTROL_STATE_DIR/.version" | cut -d= -f2)
-
-    log_info "Existing installation detected: $current_version"
-    log_info "Use ./scripts/safe-upgrade.sh for safe upgrade with modification detection"
-
-    if [[ "$FORCE_MODE" != "true" ]]; then
-      if ! ask_confirmation "Proceed with standard upgrade (may lose customizations)?"; then
-        log_info "Upgrade cancelled. Run ./scripts/safe-upgrade.sh for safe upgrade."
-        exit 0
-      fi
+    # Auto-run safe-upgrade (default behavior is safe upgrade)
+    if [[ -x ./scripts/safe-upgrade.sh ]]; then
+      exec ./scripts/safe-upgrade.sh
+    else
+      # Fallback: warn user about risks
+      print_status $YELLOW "⚠️  Safe upgrade script not found"
+      read -rp "Continue with standard upgrade? [y/N]: " confirm
+      [[ ! $confirm =~ ^[Yy]$ ]] && exit 0
     fi
-  fi
-}
-
-# 3. Integrate safe upgrade into --upgrade flag
-if [[ $UPGRADE_MODE == true ]]; then
-  if [[ -x "./scripts/safe-upgrade.sh" ]]; then
-    exec ./scripts/safe-upgrade.sh --upgrade
-  else
-    log_warning "safe-upgrade.sh not found, falling back to standard upgrade"
-    # Standard upgrade logic
   fi
 fi
 ```
 
-## Hash Registry Generation
+**Key Features**:
+- ✅ **Zero user action**: Just run installer again
+- ✅ **Version comparison**: Automatically detects upgrades
+- ✅ **Safe fallback**: Warns if safe-upgrade unavailable
+- ✅ **User confirmation**: Asks before risky operations
 
-### During Release Process
+### Version Tracking
+
+During installation, version info is recorded:
 
 ```bash
-# scripts/generate-release-hashes.sh
-
-VERSION="$1"  # e.g., 0.6.11
-
-# Generate hash registry for new release
-cat > "release-hashes-${VERSION}.txt" <<EOF
-# Version $VERSION File Hashes
-# Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)
-
-VERSION_HASHES["$VERSION|.security-controls/bin/pinactlite"]="$(sha256sum .security-controls/bin/pinactlite | cut -d' ' -f1)"
-VERSION_HASHES["$VERSION|.security-controls/bin/gitleakslite"]="$(sha256sum .security-controls/bin/gitleakslite | cut -d' ' -f1)"
-VERSION_HASHES["$VERSION|.git/hooks/pre-push"]="$(sha256sum templates/pre-push.sh | cut -d' ' -f1)"
-VERSION_HASHES["$VERSION|.git/hooks/pre-commit"]="$(sha256sum templates/pre-commit.sh | cut -d' ' -f1)"
+# Write version file during installation
+write_version_info() {
+  cat >"$VERSION_FILE" <<EOF
+# Security Controls Installation Information
+version="$SCRIPT_VERSION"
+install_date="$(date)"
+installer_version="$SCRIPT_VERSION"
+project_type="$(detect_project_type)"
 EOF
+}
+```
 
-# Append to safe-upgrade.sh hash registry
-echo "Release hashes generated: release-hashes-${VERSION}.txt"
-echo "Add these to scripts/safe-upgrade.sh init_hash_registry() function"
+## Hash Registry Generation
+
+### Automated Release Process
+
+Hash registries are **automatically generated** during releases via GitHub Actions:
+
+```yaml
+# .github/workflows/release.yml
+
+- name: Generate hash registry for safe-upgrade
+  run: |
+    # Extract version from tag (remove 'v' prefix)
+    VERSION="${{ github.ref_name }}"
+    VERSION="${VERSION#v}"
+
+    echo "🔐 Generating hash registry for version $VERSION"
+
+    # Generate hash registry in all formats
+    ./scripts/generate-release-hashes.sh "$VERSION" --format bash
+    ./scripts/generate-release-hashes.sh "$VERSION" --format json
+    ./scripts/generate-release-hashes.sh "$VERSION" --format yaml
+
+- name: Create Release
+  uses: softprops/action-gh-release@v2
+  with:
+    files: |
+      install-security-controls.sh
+      checksums.txt
+      release-hashes-*.txt   # Bash format (for embedding)
+      release-hashes-*.json  # JSON format (auto-download)
+      release-hashes-*.yaml  # YAML format (documentation)
+```
+
+**Workflow**:
+1. Developer creates git tag (e.g., `v0.6.11`)
+2. GitHub Actions workflow triggered automatically
+3. Hash registry generated in 3 formats
+4. All formats uploaded to GitHub release
+5. Safe-upgrade auto-downloads JSON registry
+
+**Zero Manual Steps** (DMMT compliance):
+- ✅ No manual hash generation
+- ✅ No manual file uploads
+- ✅ No manual registry updates
+- ✅ Consistent hashes for every release
+
+### Manual Hash Generation (Debugging)
+
+For local testing or debugging:
+
+```bash
+# Generate hash registry for version 0.6.11
+$ ./scripts/generate-release-hashes.sh 0.6.11
+
+🔐 Generating release hash registry for version 0.6.11
+Format: bash
+Output: release-hashes-0.6.11.txt
+
+Calculating file hashes...
+✅ .security-controls/bin/pinactlite
+✅ .security-controls/bin/gitleakslite
+✅ install-security-controls.sh
+
+✅ Hash registry generated: release-hashes-0.6.11.txt
 ```
 
 ## Security Considerations
