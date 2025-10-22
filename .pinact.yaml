@@ -1,5 +1,8 @@
 # Pinact configuration for 1-Click GitHub Security
 # Controls SHA pinning validation for GitHub Actions workflows
+# Documentation: https://github.com/suzuki-shunsuke/pinact
+
+schema_version: v1
 
 # GitHub requires reusable workflows to use semantic version tags, not commit SHAs.
 # This is a platform requirement, not a security weakness.
