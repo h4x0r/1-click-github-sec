@@ -2617,8 +2617,19 @@ if [[ -x .security-controls/bin/pinactlite ]] && [[ -d .github/workflows ]]; the
     if .security-controls/bin/pinactlite pincheck --dir .github/workflows --quiet; then
         print_status $GREEN "✅ All GitHub Actions are properly pinned"
     else
-        print_status $RED "❌ GitHub Actions pinning validation failed"
-        FAILED=1
+        print_status $YELLOW "🛠  Auto-pinning unpinned references..."
+        set +e
+        .security-controls/bin/pinactlite autopin --dir .github/workflows --actions --images --quiet
+        rc=$?
+        set -e
+        if [[ $rc -eq 2 ]]; then
+            print_status $GREEN "✅ Auto-pinned all references successfully"
+            git --no-pager diff -- .github/workflows | sed -n '1,120p' || true
+            print_status $CYAN "📝 Changes staged - review with 'git diff .github/workflows'"
+        else
+            print_status $RED "❌ Some references remain unpinned or autopin failed"
+            FAILED=1
+        fi
     fi
 fi
 
