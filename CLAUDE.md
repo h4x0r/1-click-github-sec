@@ -43,6 +43,39 @@
 - **Progressive Enhancement**: Start minimal, add security incrementally
 - **Sensible Defaults**: Secure-by-default configuration requiring no expertise
 - **Emergency Escape Hatches**: `--no-verify` available but discouraged
+- **Auto-Fix First**: Automatically fix issues instead of blocking (Don't Make Me Think principle)
+
+**Auto-Fix Philosophy (Don't Make Me Think):**
+> "Fix it for me, don't make me think about it"
+
+Security tools should solve problems, not create cognitive load:
+- **Automatic Remediation**: Fix issues automatically when safe to do so
+- **Contextual Guidance**: When auto-fix isn't possible, provide exact fix commands
+- **Zero Decisions**: Developers shouldn't need to decide *how* to fix security issues
+- **Show, Don't Block**: Display what was fixed, don't interrupt workflow
+- **Trust Through Transparency**: Show diffs of auto-fixes for review
+
+**Examples:**
+```bash
+# ❌ BAD: Block with vague error
+"Unpinned actions detected. Please fix before pushing."
+
+# ✅ GOOD: Auto-fix and inform
+"🛠 Auto-pinning unpinned references...
+✅ Auto-pinned actions/checkout@v4 → 08eba0b2...
+📝 Changes staged - review with 'git diff .github/workflows'"
+```
+
+**When to Auto-Fix:**
+- Deterministic fixes (SHA pinning, formatting, linting)
+- Zero risk of breaking functionality
+- Easily reversible changes
+- Industry-standard best practices
+
+**When to Block:**
+- Secrets detected (cannot auto-remove safely)
+- Multiple valid fix options (requires human judgment)
+- Breaking changes that need review
 
 **Performance Budget:**
 - Pre-push hook: < 60 seconds total
