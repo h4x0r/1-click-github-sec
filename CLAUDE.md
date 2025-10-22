@@ -765,88 +765,33 @@ test -x /bin/ls && echo "✅ native ls available" || echo "❌ /bin/ls not found
 
 ## 🏛️ Architectural Decision Records (ADRs)
 
-Our design philosophy represents formal architectural decisions that guide all development. These decisions are captured across multiple documents:
+The **Core Design Principles** (§ 1-8 above) represent our foundational architectural decisions. This section provides a compact cross-reference table:
 
-### ADR-001: Single-Script Architecture (CLAUDE.md § 7)
-**Decision**: Installer must be a single shell script with zero external dependencies
-**Status**: ✅ Accepted
-**Context**: Enterprise adoption, security posture, reliability, universality
-**Consequences**:
-- ✅ Works in any Unix environment without preparation
-- ✅ Minimal attack surface and supply chain risks
-- ❌ Cannot use external frameworks or multi-file architectures
-- ❌ All functionality must be embedded inline
+| ADR | Principle | Key Constraint | Primary Trade-off |
+|-----|-----------|----------------|-------------------|
+| **001** | Security Without Compromise (§ 1) | Cryptographic verification required for all components | ❌ Cannot use unverified tools |
+| **002** | Don't Make Me Think (§ 2) | Auto-fix when safe; make wrong thing impossible | ❌ Complex implementation for safe auto-fixes |
+| **003** | Two-Tier Architecture (§ 3) | Pre-push < 60s; CI comprehensive | ❌ Deep analysis deferred to CI |
+| **004** | Cryptographic Trust Model (§ 4) | SHA256 minimum; Sigstore recommended | ❌ Additional release complexity |
+| **005** | Ecosystem Integration (§ 5) | Use language-native tooling | ❌ Must maintain multi-language expertise |
+| **006** | Observable Security (§ 6) | All security decisions logged | ❌ Log management overhead |
+| **007** | Single-Script Architecture (§ 7) | Zero external dependencies | ❌ Cannot use external frameworks |
+| **008** | Dogfooding Plus (§ 8) | Repository uses all installer controls + dev-specific extras | ❌ Functional sync maintenance burden |
 
-### ADR-002: External Service Rejection (README.md § Design Philosophy)
-**Decision**: Reject security tools requiring external account registration or GitHub App installation
-**Status**: ✅ Accepted
-**Context**: True 1-click installation requires zero out-of-band setup
-**Consequences**:
-- ✅ Works identically for personal and organizational repositories
-- ✅ No corporate approval barriers or individual friction
-- ❌ Cannot integrate with Socket.dev, Snyk Cloud, Semgrep Cloud
-- ❌ Limited to GitHub-native and downloadable tools
+**External Service Constraints** (applies to all):
+- ❌ No external account registration required (violates 1-click principle)
+- ❌ No GitHub App installation required (violates zero out-of-band setup)
+- ✅ GitHub-native features preferred (CodeQL, Renovate, secret scanning)
+- ✅ Downloadable tools with checksums accepted
 
-### ADR-003: GitHub-Native Tool Preference (Multiple Documents)
-**Decision**: Prefer GitHub-native security features over third-party services
-**Status**: ✅ Accepted
-**Context**: Zero setup, universal availability, no external dependencies
-**Consequences**:
-- ✅ CodeQL, Renovate, secret scanning work immediately
-- ✅ No authentication or configuration required
-- ❌ Limited to GitHub's security feature set
-- ❌ Cannot leverage specialized third-party analytics
+**Tool Rejection Examples**: Socket.dev, Snyk Cloud, Semgrep Cloud (all require external accounts)
 
-### ADR-004: Don't Make Me Think (DMMT) Universal Design (CLAUDE.md § 2)
-**Decision**: Make it impossible to do wrong thing, effortless to do right thing (UK plug principle)
-**Status**: ✅ Accepted
-**Context**: Security through design constraints, not documentation or user vigilance
-**Consequences**:
-- ✅ Auto-fix security issues automatically (SHA pinning, formatting, linting)
-- ✅ Zero configuration required - secure by default
-- ✅ Impossible wrong configurations - installer validates and corrects
-- ❌ More complex implementation to ensure safety of auto-fixes
-- ❌ Must carefully distinguish what can be auto-fixed vs. requires human judgment
+**Documentation Strategy**:
+- **CLAUDE.md**: Authoritative design principles and ADR cross-reference
+- **README.md**: User-facing philosophy with examples
+- **SECURITY_CONTROLS_ARCHITECTURE.md**: Implementation details
 
-### ADR-005: Performance Budget for Pre-Push (CLAUDE.md § 2)
-**Decision**: Pre-push hook must complete in under 60 seconds total
-**Status**: ✅ Accepted
-**Context**: Developer experience is a security feature - friction leads to bypass
-**Consequences**:
-- ✅ Fast feedback prevents security bypass behavior
-- ✅ Parallel execution and caching required
-- ❌ Cannot run comprehensive analysis in pre-push
-- ❌ Deep scanning must be deferred to CI tier
-
-### ADR-006: Cryptographic Verification First (CLAUDE.md § 1)
-**Decision**: Every installer, update, and component must be cryptographically verified
-**Status**: ✅ Accepted
-**Context**: Security tools must be more secure than problems they solve
-**Consequences**:
-- ✅ SHA256 checksums for all downloadable components
-- ✅ Supply chain attack prevention
-- ❌ Additional complexity in release process
-- ❌ Cannot use tools without verifiable checksums
-
-### ADR-007: Multi-Language Universal Design (CLAUDE.md § 5)
-**Decision**: Work with each language ecosystem, not against it
-**Status**: ✅ Accepted
-**Context**: Leverage existing tooling and conventions for maximum effectiveness
-**Consequences**:
-- ✅ Use cargo for Rust, npm for Node.js, pip for Python, etc.
-- ✅ Backward compatibility with existing workflows
-- ❌ More complex installer logic for language detection
-- ❌ Must maintain expertise across multiple ecosystems
-
-### Decision Documentation Strategy
-
-**Primary Documentation**: CLAUDE.md (authoritative design principles)
-**User Documentation**: README.md (philosophy explanation with examples)
-**Technical Documentation**: SECURITY_CONTROLS_ARCHITECTURE.md (implementation details)
-
-**Review Process**: All architectural decisions must align with documented principles
-**Change Process**: Principle changes require updating all three documents
-**Rationale Capture**: Tool inclusion/rejection decisions documented with specific principle violations
+**Process**: All decisions must align with these principles. Principle changes require updating all three documents.
 
 ---
 
