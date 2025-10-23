@@ -36,6 +36,8 @@
 - 🎯 **Risk management** - Proactive security posture
 - 📈 **ROI measurable** - Quantifiable security improvements
 
+> **Note:** 1-Click GitHub Security works with both free and enterprise GitHub accounts. See [GitHub Enterprise vs Free Tier Comparison](github-enterprise-comparison.md) for detailed feature availability.
+
 ---
 
 ## 🏗️ Multi-Language Architecture

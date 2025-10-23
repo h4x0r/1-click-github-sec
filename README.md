@@ -6,16 +6,55 @@
 
 **Deploy security controls to any project in one command**
 
+*Security that auto-fixes problems instead of just complaining about them*
+
 *Created by Albert Hui <albert@securityronin.com>* [![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=flat-square&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/alberthui) [![Website](https://img.shields.io/badge/Website-4285F4?style=flat-square&logo=google-chrome&logoColor=white)](https://www.securityronin.com/)
 
 Supports **Rust, Node.js, Python, Go, and generic projects** with 35+ security controls including pre-push validation, CI/CD workflows, and GitHub security features.
 
-[![Security](https://img.shields.io/badge/Installer%20Provides-35%2B%20Controls-green.svg)](https://h4x0r.github.io/1-click-github-sec/)
-[![GitHub Integration](https://img.shields.io/badge/Works%20with-GitHub-181717?logo=github&logoColor=white)](https://docs.github.com/en/rest)
-[![GitHub Security](https://img.shields.io/badge/GitHub%20Security-6%20Features-blue.svg)](https://h4x0r.github.io/1-click-github-sec/)
-[![Performance](https://img.shields.io/badge/Pre--Push-%3C60s-orange.svg)](https://h4x0r.github.io/1-click-github-sec/)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-v0.6.11-purple.svg)](https://github.com/h4x0r/1-click-github-sec/releases)
+**📊 [Executive Briefing](docs/executive-briefing.md)** | **📚 [Documentation](https://h4x0r.github.io/1-click-github-sec/)** | **🏗️ [Architecture](docs/architecture.md)**
+
+[![Security](https://img.shields.io/badge/Installer%20Provides-35%2B%20Controls-green.svg)](https://h4x0r.github.io/1-click-github-sec/) [![GitHub Integration](https://img.shields.io/badge/Works%20with-GitHub-181717?logo=github&logoColor=white)](https://docs.github.com/en/rest) [![GitHub Security](https://img.shields.io/badge/GitHub%20Security-6%20Features-blue.svg)](https://h4x0r.github.io/1-click-github-sec/) [![Performance](https://img.shields.io/badge/Pre--Push-%3C60s-orange.svg)](https://h4x0r.github.io/1-click-github-sec/) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE) [![Version](https://img.shields.io/badge/Version-v0.6.11-purple.svg)](https://github.com/h4x0r/1-click-github-sec/releases)
+
+---
+
+## 🎯 What You Get
+
+### Pre-Push Security (< 60 seconds)
+✅ **Secret detection** - Blocks API keys, passwords, tokens
+✅ **Vulnerability scanning** - Catches known security issues
+✅ **Code quality checks** - Language-specific linting
+✅ **Test validation** - Ensures tests pass before push
+✅ **Supply chain security** - SHA pinning, dependency validation
+
+### CI/CD Workflows (Comprehensive Analysis)
+🔍 **Static analysis** - SAST with CodeQL and Trivy
+🔍 **Dependency auditing** - Automated vulnerability detection
+🔍 **Security reporting** - SBOM generation and metrics
+🔍 **Compliance checking** - License and policy validation
+
+### GitHub Security Features (Automated Setup)
+🤖 **Renovate** - Automated dependency updates with automerge
+🔐 **Secret scanning** - Repository-wide credential detection
+🔐 **Branch protection** - Enforce security policies
+🔐 **Security advisories** - Vulnerability disclosure workflow
+
+---
+
+## 🧠 Design Philosophy: Don't Make Me Think (DMMT)
+
+**Security that works like a UK power plug - impossible to do wrong, automatic to do right.**
+
+Our DMMT principle means:
+- **🛠 Auto-fixes instead of errors** - We fix SHA pinning automatically, not just complain
+- **⚡ Zero configuration required** - Sensible defaults that work immediately
+- **🎯 One command, comprehensive security** - No manual setup or integration
+- **✨ Invisible when working** - Security runs in background, visible only when needed
+- **🔧 Graceful degradation** - Partial features better than complete failure
+
+**Example:** Instead of `"Error: Action not pinned"`, you see `"✅ Auto-pinned actions/checkout@v4 → @08eba0b2"`
+
+This isn't just convenient - it's security through design. Like the UK plug that physically prevents incorrect insertion, we make insecure practices impossible rather than merely discouraged.
 
 ---
 
@@ -57,51 +96,9 @@ source venv/bin/activate
 
 **That's it!** Your project now has comprehensive security controls with cryptographic verification!
 
-### 🔐 Why SLSA Build Level 3?
+No configuration files to edit. No tools to manually install. No documentation to read. **It just works.**
 
-**Every release is cryptographically signed with SLSA provenance:**
-
-- ✅ **Non-falsifiable attestation** - Sigstore cryptographic signing
-- ✅ **Verifiable build provenance** - Proves who, when, and how artifacts were built
-- ✅ **Supply chain transparency** - Complete build context and materials
-- ✅ **Industry standard** - SLSA Build Level 3 compliance
-- ✅ **Zero trust** - Verify don't trust, with public transparency log
-
-**Learn More:**
-- [SLSA Framework](https://slsa.dev/) - Industry-standard supply chain security
-- [slsa-verifier Tool](https://github.com/slsa-framework/slsa-verifier) - Verification utility
-- [Cryptographic Verification](https://h4x0r.github.io/1-click-github-sec/cryptographic-verification) - How to verify releases
-- [SLSA Migration](https://h4x0r.github.io/1-click-github-sec/slsa-provenance-migration) - Technical implementation details
-
----
-
-## 🎯 What You Get
-
-### Pre-Push Security (< 60 seconds)
-✅ **Secret detection** - Blocks API keys, passwords, tokens
-✅ **Vulnerability scanning** - Catches known security issues
-✅ **Code quality checks** - Language-specific linting
-✅ **Test validation** - Ensures tests pass before push
-✅ **Supply chain security** - SHA pinning, dependency validation
-
-### CI/CD Workflows (Comprehensive Analysis)
-🔍 **Static analysis** - SAST with CodeQL and Trivy
-🔍 **Dependency auditing** - Automated vulnerability detection
-🔍 **Security reporting** - SBOM generation and metrics
-🔍 **Compliance checking** - License and policy validation
-
-### GitHub Security Features (Automated Setup)
-🤖 **Renovate** - Automated dependency updates with automerge and intelligent grouping
-🔐 **Secret scanning** - Repository-wide credential detection
-🔐 **Branch protection** - Enforce security policies
-🔐 **Security advisories** - Vulnerability disclosure workflow
-
-### Cryptographic Verification
-🔑 **SLSA Build Level 3** - Cryptographically signed build provenance (v0.6.11+)
-🔑 **Signed commits** - Every commit cryptographically verified via gitsign
-🔑 **Signed releases** - Release artifacts with Sigstore provenance
-🔑 **Certificate transparency** - Public audit trail via Rekor transparency log
-🔑 **Keyless signing** - No GPG key management, OIDC-based authentication
+**Why verify?** Every release is cryptographically signed with SLSA Build Level 3 provenance - proving it wasn't tampered with. [Learn more →](https://h4x0r.github.io/1-click-github-sec/cryptographic-verification)
 
 ---
 
@@ -115,6 +112,7 @@ source venv/bin/activate
 
 ### 🔧 Power Users
 - **[Security Architecture](https://h4x0r.github.io/1-click-github-sec/architecture)** - How everything works
+- **[GitHub Enterprise vs Free](https://h4x0r.github.io/1-click-github-sec/github-enterprise-comparison)** - Feature availability and alternatives
 - **[Complete Signing Guide](https://h4x0r.github.io/1-click-github-sec/signing-guide)** - 4-mode setup, GPG vs gitsign, verification
 - **[Cryptographic Verification](https://h4x0r.github.io/1-click-github-sec/cryptographic-verification)** - Advanced verification procedures
 
@@ -123,23 +121,8 @@ source venv/bin/activate
 - **[Repository Security & Quality Assurance](https://github.com/h4x0r/1-click-github-sec/blob/main/docs/repo-security-and-quality-assurance.md)** - This repo's implementation
 - **[Design Principles](https://github.com/h4x0r/1-click-github-sec/blob/main/docs/design-principles.md)** - Architectural decisions
 
----
-
-## 🔐 Security Verification
-
-**Every release is cryptographically signed:**
-
-```bash
-# Verify release authenticity
-git tag -v v0.6.11
-
-# Expected output:
-# gitsign: Good signature from [albert@securityronin.com]
-# Validated Git signature: true
-# Validated Rekor entry: true
-```
-
-All commits and releases are signed with [Sigstore](https://sigstore.dev/) and logged in the [Rekor transparency ledger](https://rekor.sigstore.dev/) for public verification.
+### 📊 Leadership
+- **[Executive Briefing](https://h4x0r.github.io/1-click-github-sec/executive-briefing)** - Strategic evaluation for CTOs, VPs, Directors
 
 ---
 

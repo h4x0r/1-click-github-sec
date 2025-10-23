@@ -37,13 +37,17 @@ theme:
     - content.code.annotate
 nav:
   - 🏠 Home: index.md
+  - 📊 Executive Briefing: executive-briefing.md
   - 🚀 Get Started:
     - Installation Guide: installation.md
     - Uninstall Guide: uninstall.md
   - 🔧 Power User Guides:
     - Security Architecture: architecture.md
+    - GitHub Enterprise vs Free Tier: github-enterprise-comparison.md
     - Complete Signing Guide: signing-guide.md
     - Cryptographic Verification: cryptographic-verification.md
+    - SLSA Provenance Migration: slsa-provenance-migration.md
+    - Safe Upgrade System: safe-upgrade-system.md
   - 👥 Development:
     - Contributing: contributing.md
     - Repository Security & Quality Assurance: repo-security-and-quality-assurance.md

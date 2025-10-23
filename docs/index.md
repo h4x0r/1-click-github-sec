@@ -42,14 +42,22 @@ Supports **Rust, Node.js, Python, Go, and generic projects** with 35+ security c
 
 ---
 
-## 🚀 **New Here?** Start With These
+## 📊 **For Leadership:** Executive Overview
+
+| Document | Audience | Purpose |
+|----------|----------|---------|
+| **[Executive Briefing →](executive-briefing.md)** | CTOs, VPs, Directors | Strategic evaluation, ROI analysis, enterprise readiness |
+
+---
+
+## 🚀 **For Developers:** Quick Start
 
 | Guide | Time | What You'll Learn |
 |-------|------|-------------------|
 | **[Installation →](installation.md)** | 5 min | Get security controls installed |
 | **[Uninstall →](uninstall.md)** | 2 min | Remove controls if needed |
 
-**That's it!** Most users don't need anything else.
+**That's it!** Most developers don't need anything else.
 
 ---
 
@@ -58,8 +66,11 @@ Supports **Rust, Node.js, Python, Go, and generic projects** with 35+ security c
 | Guide | Level | What You'll Learn |
 |-------|-------|-------------------|
 | **[Security Architecture →](architecture.md)** | Advanced | How everything works together |
+| **[GitHub Enterprise vs Free →](github-enterprise-comparison.md)** | Intermediate | Feature availability and alternatives |
 | **[Complete Signing Guide →](signing-guide.md)** | Intermediate | 4-mode setup, GPG vs gitsign, verification |
 | **[Cryptographic Verification →](cryptographic-verification.md)** | Expert | Advanced verification procedures |
+| **[SLSA Provenance →](slsa-provenance-migration.md)** | Expert | Supply chain security implementation |
+| **[Safe Upgrade System →](safe-upgrade-system.md)** | Advanced | Upgrade without losing customizations |
 
 ---
 
@@ -81,4 +92,4 @@ Supports **Rust, Node.js, Python, Go, and generic projects** with 35+ security c
 
 ---
 
-*Updated: September 25, 2025 - Enhanced with cryptographic signing documentation*
+*Updated: October 2025*

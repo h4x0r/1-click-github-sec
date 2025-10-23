@@ -747,6 +747,38 @@ test -x /bin/ls && echo "✅ native ls available" || echo "❌ /bin/ls not found
 - **Security Tests**: Verify security controls actually work
 - **User Acceptance Tests**: Real-world usage scenarios
 
+### Common CI/CD Build Issues and Solutions
+
+#### Leptonica/Tesseract OCR Dependencies (`leptonica-sys` build failures)
+
+**Problem:** Rust projects using OCR libraries fail with:
+```
+error: failed to run custom build command for `leptonica-sys`
+The system library `lept` required by crate `leptonica-sys` was not found.
+```
+
+**Solution for GitHub Actions (Ubuntu):**
+```yaml
+- name: Install Tesseract OCR dependencies
+  run: |
+    sudo apt-get update
+    sudo apt-get install -y libleptonica-dev libtesseract-dev tesseract-ocr
+```
+
+**Solution for Other CI Platforms:**
+- **macOS**: `brew install tesseract leptonica`
+- **Alpine Linux**: `apk add tesseract-ocr-dev leptonica-dev`
+- **RHEL/CentOS**: `yum install tesseract-devel leptonica-devel`
+
+**Alternative:** Consider making OCR features optional in `Cargo.toml`:
+```toml
+[features]
+default = []
+ocr = ["leptonica-sys", "tesseract-sys"]
+```
+
+This allows CI builds to skip OCR dependencies with `--no-default-features` when not needed.
+
 ### Release Process
 1. **Version Bumping**: **CRITICAL - Always use `./scripts/version-sync.sh X.Y.Z`** to maintain consistency across:
    - VERSION file (Single Source of Truth)
@@ -946,6 +978,6 @@ For universal AI-assisted development principles, see: https://t.ly/CLAUDE.md
 
 ---
 
-*Last Updated: January 2025*
+*Last Updated: October 2025*
 *Version: 1.1.0*
 *Maintainers: @h4x0r and community contributors*

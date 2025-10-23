@@ -385,7 +385,6 @@ handle_modified_files_interactive() {
   fi
 }
 
-
 # List available backups for rollback
 list_available_backups() {
   if [[ ! -d $BACKUP_DIR ]]; then
@@ -661,7 +660,7 @@ install_slsa_verifier() {
   # Map architecture names
   case "$arch" in
     x86_64) arch="amd64" ;;
-    aarch64|arm64) arch="arm64" ;;
+    aarch64 | arm64) arch="arm64" ;;
     *)
       log_error "Unsupported architecture: $arch"
       return 1
@@ -764,7 +763,6 @@ verify_slsa_provenance() {
 # Download SLSA provenance for a release
 download_slsa_provenance() {
   local version="$1"
-  local artifact_name="${2:-install-security-controls.sh}"
 
   # SLSA provenance files follow pattern: {artifact}.intoto.jsonl or multiple.intoto.jsonl
   local provenance_name="multiple.intoto.jsonl"

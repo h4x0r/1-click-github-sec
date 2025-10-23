@@ -216,12 +216,12 @@ The 1-Click GitHub Security project requires synchronization across multiple dim
 #### Version Management
 ```bash
 # Single source of truth
-VERSION="0.6.5" (in VERSION file)
+VERSION="0.6.11" (in VERSION file)
 
 # Automated propagation to:
-- README.md: [![Version](https://img.shields.io/badge/Version-v0.6.5-purple.svg)]
-- install-security-controls.sh: readonly SCRIPT_VERSION="0.6.5"
-- CHANGELOG.md: ## [0.6.5] - YYYY-MM-DD
+- README.md: [![Version](https://img.shields.io/badge/Version-v0.6.11-purple.svg)]
+- install-security-controls.sh: readonly SCRIPT_VERSION="0.6.11"
+- CHANGELOG.md: ## [0.6.11] - YYYY-MM-DD
 ```
 
 #### Security Control Counts
