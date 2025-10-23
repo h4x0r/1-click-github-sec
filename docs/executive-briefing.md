@@ -16,17 +16,11 @@ One command installs 35+ security controls across Rust, Node.js, Python, Go, and
 - **Zero Dependencies:** Single bash script, works on any Unix system
 - **Open Source:** [Apache 2.0 license](https://github.com/h4x0r/1-click-github-sec), no vendor lock-in or telemetry
 
-**Installation:** One command, ~10 minutes
+**Installation:** Three commands, ~10 minutes
 
 ```bash
-# 1. Download installer
-curl -LO https://github.com/h4x0r/1-click-github-sec/releases/latest/download/install-security-controls.sh
-
-# 2. Verify integrity (REQUIRED - see docs for current checksum)
-curl -LO https://github.com/h4x0r/1-click-github-sec/releases/latest/download/install-security-controls.sh.sha256
+curl -LO https://github.com/h4x0r/1-click-github-sec/releases/latest/download/install-security-controls.sh{,.sha256}
 sha256sum -c install-security-controls.sh.sha256
-
-# 3. Execute
 chmod +x install-security-controls.sh && ./install-security-controls.sh
 ```
 
