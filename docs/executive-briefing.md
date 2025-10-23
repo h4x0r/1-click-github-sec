@@ -12,7 +12,7 @@
 
 ## What It Is
 
-1-Click GitHub Security is an open-source security framework that bundles industry-standard security tools into git hooks and CI/CD workflows. [Source code available on GitHub](https://github.com/h4x0r/1-click-github-sec).
+1-Click GitHub Security is an open-source security framework that bundles industry-standard security tools into git hooks and CI/CD workflows. Source code available on GitHub: <https://github.com/h4x0r/1-click-github-sec>
 
 ### The Problem It Solves
 
@@ -75,7 +75,7 @@ The installer is a single bash script requiring only:
 
 ### 4. **Open Source and Auditable**
 
-- Full source code available: [GitHub Repository](https://github.com/h4x0r/1-click-github-sec)
+- Full source code available: <https://github.com/h4x0r/1-click-github-sec>
 - Apache 2.0 License for commercial use
 - All security decisions logged to `.security-controls/logs/`
 - Transparent operation with no telemetry or external reporting
@@ -101,7 +101,7 @@ chmod +x install-security-controls.sh
 ./install-security-controls.sh
 ```
 
-[Full installation documentation](https://github.com/h4x0r/1-click-github-sec/blob/main/docs/installation.md)
+Full installation documentation: <https://h4x0r.github.io/1-click-github-sec/installation>
 
 ### What Gets Installed
 
@@ -175,8 +175,8 @@ The framework incorporates practices from:
 ### Open Source Project
 
 - **License:** Apache 2.0 (commercial use permitted)
-- **Repository:** https://github.com/h4x0r/1-click-github-sec
-- **Documentation:** https://h4x0r.github.io/1-click-github-sec/
+- **Repository:** <https://github.com/h4x0r/1-click-github-sec>
+- **Documentation:** <https://h4x0r.github.io/1-click-github-sec/>
 - **Issue Tracking:** GitHub Issues for bug reports and feature requests
 
 ---
@@ -266,9 +266,9 @@ This framework integrates established open-source tools:
 
 ## Technical Support
 
-**Documentation:** https://h4x0r.github.io/1-click-github-sec/
-**Source Code:** https://github.com/h4x0r/1-click-github-sec
-**Issues/Support:** https://github.com/h4x0r/1-click-github-sec/issues
+**Documentation:** <https://h4x0r.github.io/1-click-github-sec/>
+**Source Code:** <https://github.com/h4x0r/1-click-github-sec>
+**Issues/Support:** <https://github.com/h4x0r/1-click-github-sec/issues>
 
 ### Author
 
