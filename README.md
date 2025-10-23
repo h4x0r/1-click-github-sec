@@ -112,7 +112,7 @@ No configuration files to edit. No tools to manually install. No documentation t
 
 ### 🔧 Power Users
 - **[Security Architecture](https://h4x0r.github.io/1-click-github-sec/architecture)** - How everything works
-- **[GitHub Enterprise vs Free](https://github.com/h4x0r/1-click-github-sec/blob/main/docs/github-enterprise-comparison.md)** - Feature availability and alternatives
+- **[GitHub Enterprise vs Free](https://h4x0r.github.io/1-click-github-sec/github-enterprise-comparison)** - Feature availability and alternatives
 - **[Complete Signing Guide](https://h4x0r.github.io/1-click-github-sec/signing-guide)** - 4-mode setup, GPG vs gitsign, verification
 - **[Cryptographic Verification](https://h4x0r.github.io/1-click-github-sec/cryptographic-verification)** - Advanced verification procedures
 
@@ -122,7 +122,7 @@ No configuration files to edit. No tools to manually install. No documentation t
 - **[Design Principles](https://github.com/h4x0r/1-click-github-sec/blob/main/docs/design-principles.md)** - Architectural decisions
 
 ### 📊 Leadership
-- **[Executive Briefing](https://github.com/h4x0r/1-click-github-sec/blob/main/docs/executive-briefing.md)** - Strategic evaluation for CTOs, VPs, Directors
+- **[Executive Briefing](https://h4x0r.github.io/1-click-github-sec/executive-briefing)** - Strategic evaluation for CTOs, VPs, Directors
 
 ---
 

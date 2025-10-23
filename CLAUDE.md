@@ -779,6 +779,87 @@ ocr = ["leptonica-sys", "tesseract-sys"]
 
 This allows CI builds to skip OCR dependencies with `--no-default-features` when not needed.
 
+### Documentation Link Format Standards (GitHub + MkDocs)
+
+**Critical Rule**: Understand how different tools interpret documentation links and use appropriate formats for each context.
+
+**Context**: These standards are optimized for GitHub repositories with MkDocs documentation sites and lychee link validation.
+
+**Problem**: Documentation systems use different link formatting conventions, leading to validation failures when formats are mixed incorrectly:
+
+**MkDocs vs Lychee Link Interpretation**:
+- **MkDocs** (site generation): Converts directory-style links (`installation/`) to proper web URLs
+- **Lychee** (link validation): Interprets links literally as file system paths during CI validation
+- **Mixed formats** cause CI failures when lychee can't find files that MkDocs handles correctly
+
+**Link Format Standards by Context**:
+
+1. **Internal Documentation Links** (within docs/ folder):
+   ```markdown
+   # ✅ CORRECT - Direct file references
+   [Installation Guide](installation.md)
+   [Security Architecture](architecture.md)
+   [4-Mode Signing Configuration](installation.md#4-configure-commit-signing-4-modes-available)
+
+   # ❌ INCORRECT - Directory-style (breaks lychee)
+   [Installation Guide](installation/)
+   [Security Architecture](architecture/)
+   ```
+
+2. **Documentation Site URLs** (external references):
+   ```markdown
+   # ✅ CORRECT - No trailing slashes
+   https://h4x0r.github.io/1-click-github-sec/installation
+   https://h4x0r.github.io/1-click-github-sec/architecture
+
+   # ❌ INCORRECT - Trailing slashes (404 errors)
+   https://h4x0r.github.io/1-click-github-sec/installation/
+   https://h4x0r.github.io/1-click-github-sec/architecture/
+   ```
+
+3. **GitHub Repository Links**:
+   ```markdown
+   # ✅ CORRECT - Full GitHub URLs for directories
+   [Workflow Sources](https://github.com/h4x0r/1-click-github-sec/tree/main/.github/workflows)
+
+   # ❌ INCORRECT - Relative paths to directories
+   [Workflow Sources](.github/workflows/)
+   ```
+
+**Validation Process for Links**:
+1. **Test with MkDocs**: `mkdocs build` - ensures site generates correctly
+2. **Test with Lychee**: `lychee docs/**/*.md README.md` - ensures CI validation passes
+3. **Manual Verification**: Click links in both rendered site and raw markdown
+
+**Common Failure Patterns**:
+- ❌ Using MkDocs-style directory links (`installation/`) in contexts where lychee validates
+- ❌ Adding trailing slashes to documentation site URLs
+- ❌ Using relative paths for repository directory references
+- ❌ Mixing link formats without testing both rendering and validation
+
+**Success Pattern**:
+- ✅ Use file extensions (`.md`) for internal documentation links
+- ✅ Use clean URLs without trailing slashes for external documentation site links
+- ✅ Use full GitHub URLs for repository directory and file references
+- ✅ Test links with both MkDocs build and lychee validation
+- ✅ Maintain consistency within each link type category
+
+**Tools and Commands**:
+```bash
+# Test MkDocs rendering
+mkdocs build -d site
+
+# Test lychee link validation
+lychee docs/**/*.md README.md --config lychee.toml
+
+# Test both in CI pipeline
+.github/workflows/docs.yml
+```
+
+**Lesson**: Documentation link formats must be **context-appropriate** and **tool-compatible**. Different tools have different expectations, and mixing formats without understanding the interpretation differences causes validation failures. Always test links with both rendering and validation tools.
+
+**Scope Limitation**: These guidelines are specific to GitHub + MkDocs + lychee workflows. Other documentation ecosystems (GitLab + Hugo, Bitbucket + Jekyll, etc.) may have different link format requirements.
+
 ### Release Process
 1. **Version Bumping**: **CRITICAL - Always use `./scripts/version-sync.sh X.Y.Z`** to maintain consistency across:
    - VERSION file (Single Source of Truth)
