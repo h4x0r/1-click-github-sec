@@ -104,6 +104,32 @@ setup_logging() {
     echo "User: $(whoami)"
     echo "========================================"
   } >>"$LOG_FILE"
+
+  # Cleanup old log files
+  cleanup_old_logs
+}
+
+# Cleanup old log files - keep last 10 runs and remove files older than 30 days
+cleanup_old_logs() {
+  if [[ ! -d $LOG_DIR ]]; then
+    return 0
+  fi
+
+  # Count-based rotation: keep only the last 10 log files
+  local log_count
+  log_count=$(find "$LOG_DIR" -name "install-*.log" -type f | wc -l | tr -d ' ')
+
+  if [[ $log_count -gt 10 ]]; then
+    local to_delete=$((log_count - 10))
+    # Delete oldest files beyond the 10 most recent
+    find "$LOG_DIR" -name "install-*.log" -type f -print0 |
+      xargs -0 ls -t |
+      tail -n "$to_delete" |
+      xargs rm -f 2>/dev/null || true
+  fi
+
+  # Age-based cleanup: remove logs older than 30 days
+  find "$LOG_DIR" -name "install-*.log" -type f -mtime +30 -delete 2>/dev/null || true
 }
 
 # Enhanced logging functions
