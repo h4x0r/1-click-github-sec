@@ -39,13 +39,13 @@ jobs:
       uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@afb54ba388a7dca6ecae48f608c4ff05ff4cc77a # v3.25.15
+      uses: github/codeql-action/init@16140ae1a102900babc80a33c44059580f687047 # v4.30.9
       with:
         languages: ${{ matrix.language }}
         build-mode: ${{ matrix.build-mode }}
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@afb54ba388a7dca6ecae48f608c4ff05ff4cc77a # v3.25.15
+      uses: github/codeql-action/analyze@16140ae1a102900babc80a33c44059580f687047 # v4.30.9
       with:
         category: "/language:${{matrix.language}}"
 
@@ -67,7 +67,7 @@ jobs:
           output: 'trivy-results.sarif'
 
       - name: Upload Trivy scan results to GitHub Security
-        uses: github/codeql-action/upload-sarif@afb54ba388a7dca6ecae48f608c4ff05ff4cc77a # v3.25.15
+        uses: github/codeql-action/upload-sarif@16140ae1a102900babc80a33c44059580f687047 # v4.30.9
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
