@@ -23,12 +23,14 @@ Development teams need to integrate multiple security tools across different lan
 The framework provides:
 
 **[Pre-Push Security Checks](https://h4x0r.github.io/1-click-github-sec/installation#expected-timings) (Design Target: < 60 seconds)**
+
 - Secret scanning via gitleaks (~2s estimated)
 - Vulnerability scanning per language (~5-20s estimated)
 - License compliance checks (~5s estimated)
 - Code quality validation (~15s estimated)
 
 **[Supported Security Tools by Language](https://h4x0r.github.io/1-click-github-sec/architecture#language-detection)**
+
 - **Rust:** cargo-deny, cargo-audit, clippy
 - **Node.js:** npm audit, retire.js, ESLint security plugins
 - **Python:** safety, bandit, pip-audit
@@ -36,6 +38,7 @@ The framework provides:
 - **All:** gitleaks for secret detection
 
 **Integration Points**
+
 - Git pre-commit and pre-push hooks
 - GitHub Actions workflows (6 specialized workflows)
 - SHA256 checksum verification for all downloaded tools
@@ -50,6 +53,7 @@ The framework provides:
 The framework automates the integration of established security tools, reducing manual setup time.
 
 **Implementation Features:**
+
 - Auto-detection of project language via file markers (Cargo.toml, package.json, go.mod)
 - Lightweight script-based tools (gitleakslite, pinactlite) for zero-dependency operation
 - Pre-configured git hooks with language-specific checks
@@ -57,6 +61,7 @@ The framework automates the integration of established security tools, reducing 
 ### 2. **Cryptographic Verification**
 
 The framework emphasizes cryptographic verification:
+
 - SHA256 checksums provided for installer downloads
 - Sigstore/gitsign integration for commit signing
 - Tools downloaded through package managers (cargo, npm, pip) with their native verification
@@ -65,6 +70,7 @@ The framework emphasizes cryptographic verification:
 ### 3. **No External Dependencies**
 
 The installer is a single bash script requiring only:
+
 - bash 3.2+ (ships with macOS/Linux)
 - Standard Unix utilities (curl, git, awk, sed)
 - No package managers beyond what your project already uses
@@ -102,16 +108,19 @@ chmod +x install-security-controls.sh
 ### What Gets Installed
 
 **Git Hooks:**
+
 - `.git/hooks/pre-commit` - Format checking and basic validation
 - `.git/hooks/pre-push` - Security scanning and vulnerability detection
 
 **GitHub Actions Workflows:**
+
 - `security-audit.yml` - Comprehensive vulnerability scanning
 - `continuous-integration.yml` - Build and test validation
 - `dependency-review.yml` - Supply chain security checks
 - Additional specialized workflows based on project type
 
 **Configuration Files:**
+
 - `.gitleaks.toml` - Secret detection patterns
 - Language-specific security configurations
 - `.security-controls/` directory for logs and state
@@ -123,11 +132,13 @@ chmod +x install-security-controls.sh
 ### Performance Impact
 
 **Design Targets:**
+
 - Pre-push hook total time: < 60 seconds
 - Individual tool checks: < 30 seconds each
 - Installation time: < 10 minutes
 
 **Note:** These are design targets. Actual performance depends on:
+
 - Repository size and complexity
 - Number of dependencies
 - Local machine specifications
@@ -161,6 +172,7 @@ git push --no-verify
 ### Security Standards Alignment
 
 The framework incorporates practices from:
+
 - **OWASP:** Dependency checking, secret scanning
 - **NIST:** Vulnerability management guidelines
 - **SLSA:** Supply chain security principles (provenance planned)
@@ -199,6 +211,7 @@ The framework incorporates practices from:
 ### Customization Options
 
 The framework supports customization via:
+
 - `.gitleaks.toml` for secret detection patterns
 - Environment variables for tool configuration
 - Custom GitHub Actions workflows
@@ -213,14 +226,17 @@ The framework supports customization via:
 According to industry reports:
 
 #### [IBM Cost of a Data Breach Report 2023](https://www.ibm.com/reports/data-breach)
+
 - Average breach cost: **$4.45M**
 - 15.3% increase since 2020
 
 #### [Verizon Data Breach Investigations Report 2023](https://www.verizon.com/business/resources/reports/dbir/)
+
 - **74%** of breaches involve the human element
 - Includes: errors, privilege misuse, stolen credentials, social engineering
 
 #### [GitGuardian State of Secrets Sprawl 2023](https://www.gitguardian.com/state-of-secrets-sprawl-report-2023)
+
 - **10 million** secrets detected in public GitHub commits in 2022
 - 67% increase from 2021
 
@@ -231,18 +247,22 @@ According to industry reports:
 This framework integrates established open-source tools:
 
 #### Secret Detection
+
 - [**gitleaks**](https://github.com/gitleaks/gitleaks) - 23.7k GitHub stars
 - Purpose: Detect and prevent secrets in git repos
 
 #### Static Analysis
+
 - [**Semgrep**](https://github.com/semgrep/semgrep) - 13.1k GitHub stars
 - Purpose: Static application security testing (SAST)
 
 #### Rust Security
+
 - [**cargo-audit**](https://github.com/rustsec/rustsec) - Rust advisory database integration
 - Purpose: Vulnerability scanning for Rust dependencies
 
 #### Node.js Security
+
 - [**npm audit**](https://docs.npmjs.com/cli/commands/npm-audit) - Built into npm
 - Purpose: JavaScript dependency vulnerability scanning
 
