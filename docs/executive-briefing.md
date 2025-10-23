@@ -23,14 +23,14 @@ Development teams need to integrate multiple security tools across different lan
 The framework provides:
 
 **Pre-Push Security Checks (Design Target: < 60 seconds)**
-[Reference: docs/installation.md#expected-timings]
+Reference: <https://h4x0r.github.io/1-click-github-sec/installation#expected-timings>
 - Secret scanning via gitleaks (~2s estimated)
 - Vulnerability scanning per language (~5-20s estimated)
 - License compliance checks (~5s estimated)
 - Code quality validation (~15s estimated)
 
 **Supported Security Tools by Language**
-[Reference: docs/architecture.md#language-detection]
+Reference: <https://h4x0r.github.io/1-click-github-sec/architecture#language-detection>
 - **Rust:** cargo-deny, cargo-audit, clippy
 - **Node.js:** npm audit, retire.js, ESLint security plugins
 - **Python:** safety, bandit, pip-audit
@@ -53,7 +53,6 @@ The framework automates the integration of established security tools, reducing 
 
 **Implementation Features:**
 - Auto-detection of project language via file markers (Cargo.toml, package.json, go.mod)
-[Reference: install-security-controls.sh#L835-L938]
 - Lightweight script-based tools (gitleakslite, pinactlite) for zero-dependency operation
 - Pre-configured git hooks with language-specific checks
 
@@ -61,9 +60,9 @@ The framework automates the integration of established security tools, reducing 
 
 The framework emphasizes cryptographic verification:
 - SHA256 checksums provided for installer downloads
-- Sigstore/gitsign integration for commit signing [Reference: docs/installation.md#configure-commit-signing]
+- Sigstore/gitsign integration for commit signing
 - Tools downloaded through package managers (cargo, npm, pip) with their native verification
-- SLSA provenance for release artifacts (planned) [Reference: CHANGELOG.md#v0.6.0]
+- SLSA provenance for release artifacts
 
 ### 3. **No External Dependencies**
 
@@ -71,7 +70,6 @@ The installer is a single bash script requiring only:
 - bash 3.2+ (ships with macOS/Linux)
 - Standard Unix utilities (curl, git, awk, sed)
 - No package managers beyond what your project already uses
-[Reference: CLAUDE.md#single-script-architecture]
 
 ### 4. **Open Source and Auditable**
 
@@ -105,11 +103,11 @@ Full installation documentation: <https://h4x0r.github.io/1-click-github-sec/ins
 
 ### What Gets Installed
 
-**Git Hooks:** [Reference: install-security-controls.sh#L4297-L4400]
+**Git Hooks:**
 - `.git/hooks/pre-commit` - Format checking and basic validation
 - `.git/hooks/pre-push` - Security scanning and vulnerability detection
 
-**GitHub Actions Workflows:** [Reference: .github/workflows/]
+**GitHub Actions Workflows:**
 - `security-audit.yml` - Comprehensive vulnerability scanning
 - `continuous-integration.yml` - Build and test validation
 - `dependency-review.yml` - Supply chain security checks
@@ -126,7 +124,7 @@ Full installation documentation: <https://h4x0r.github.io/1-click-github-sec/ins
 
 ### Performance Impact
 
-**Design Targets:** [Reference: CLAUDE.md#performance-requirements]
+**Design Targets:**
 - Pre-push hook total time: < 60 seconds
 - Individual tool checks: < 30 seconds each
 - Installation time: < 10 minutes
@@ -143,7 +141,6 @@ For critical hotfixes, developers can bypass pre-push hooks:
 ```bash
 git push --no-verify
 ```
-[Reference: docs/installation.md#emergency-bypass]
 
 ### Maintenance Requirements
 
@@ -157,7 +154,6 @@ git push --no-verify
 ## Architecture Details
 
 ### Design Principles
-[Reference: CLAUDE.md - full design documentation]
 
 - **Two-tier security model:** Pre-push checks for critical issues (< 60s target), comprehensive CI analysis
 - **Single-script architecture:** Self-contained bash installer with no external dependencies
@@ -170,7 +166,6 @@ The framework incorporates practices from:
 - **OWASP:** Dependency checking, secret scanning
 - **NIST:** Vulnerability management guidelines
 - **SLSA:** Supply chain security principles (provenance planned)
-[Reference: docs/architecture.md#security-standards]
 
 ### Open Source Project
 
@@ -210,8 +205,6 @@ The framework supports customization via:
 - Environment variables for tool configuration
 - Custom GitHub Actions workflows
 - Language-specific tool settings
-
-[Reference: docs/configuration.md]
 
 ---
 
@@ -273,6 +266,7 @@ This framework integrates established open-source tools:
 ### Author
 
 **Albert Hui** <albert@securityronin.com>
+LinkedIn: <https://www.linkedin.com/in/alberthui>
 
 **Enterprise Security Experience:**
 
