@@ -221,34 +221,46 @@ The framework supports customization via:
 
 According to industry reports:
 
-**IBM Cost of a Data Breach Report 2023**
+#### IBM Cost of a Data Breach Report 2023
 - Average breach cost: **$4.45M**
 - 15.3% increase since 2020
-- *Source: [IBM Security](https://www.ibm.com/reports/data-breach)*
+- Source: <https://www.ibm.com/reports/data-breach>
 
-**Verizon Data Breach Investigations Report 2023**
+#### Verizon Data Breach Investigations Report 2023
 - **74%** of breaches involve the human element
 - Includes: errors, privilege misuse, stolen credentials, social engineering
-- *Source: [Verizon Enterprise](https://www.verizon.com/business/resources/reports/dbir/)*
+- Source: <https://www.verizon.com/business/resources/reports/dbir/>
 
-**GitGuardian State of Secrets Sprawl 2023**
+#### GitGuardian State of Secrets Sprawl 2023
 - **10 million** secrets detected in public GitHub commits in 2022
 - 67% increase from 2021
-- *Source: [GitGuardian Research](https://www.gitguardian.com/state-of-secrets-sprawl-report-2023)*
+- Source: <https://www.gitguardian.com/state-of-secrets-sprawl-report-2023>
 
 *Note: These are industry statistics, not specific measurements from this tool.*
 
 ### Security Tool Landscape
 
 This framework integrates established open-source tools:
-- **gitleaks:** 23.7k GitHub stars, secret detection
-  [Source: https://github.com/gitleaks/gitleaks]
-- **Semgrep:** 13.1k GitHub stars, static analysis (SAST)
-  [Source: https://github.com/semgrep/semgrep]
-- **cargo-audit:** Rust security advisory database integration
-  [Source: https://github.com/rustsec/rustsec]
-- **npm audit:** Built into npm, maintained by GitHub
-  [Source: https://docs.npmjs.com/cli/commands/npm-audit]
+
+#### Secret Detection
+- **gitleaks** - 23.7k GitHub stars
+- Purpose: Detect and prevent secrets in git repos
+- Source: <https://github.com/gitleaks/gitleaks>
+
+#### Static Analysis
+- **Semgrep** - 13.1k GitHub stars
+- Purpose: Static application security testing (SAST)
+- Source: <https://github.com/semgrep/semgrep>
+
+#### Rust Security
+- **cargo-audit** - Rust advisory database integration
+- Purpose: Vulnerability scanning for Rust dependencies
+- Source: <https://github.com/rustsec/rustsec>
+
+#### Node.js Security
+- **npm audit** - Built into npm
+- Purpose: JavaScript dependency vulnerability scanning
+- Source: <https://docs.npmjs.com/cli/commands/npm-audit>
 
 ---
 
