@@ -95,6 +95,6 @@ Pre-push hooks designed for < 60s total (actual time varies by repo size, depend
 
 **Author:** Albert Hui <albert@securityronin.com> [![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=flat-square&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/alberthui) [![Website](https://img.shields.io/badge/Website-4285F4?style=flat-square&logo=google-chrome&logoColor=white)](https://www.securityronin.com/)
 
-Former Director at Deloitte Risk Advisory, Global Security Architect at IBM, Incident Response Lead at HSBC, CERT Member at Morgan Stanley | 20+ years Fortune 500 security experience
+Enterprise security leadership at Deloitte, IBM, NTT, HSBC, Morgan Stanley | 20+ years Fortune 500 experience
 
 **License:** Apache 2.0 - Free for commercial use
