@@ -3519,15 +3519,22 @@ else
     print_status $BLUE "   Install: brew install shellcheck (macOS) or apt install shellcheck (Ubuntu)"
 fi
 
-# Shell formatting check (shfmt)
+# Shell formatting check (shfmt) - AUTO-FIX following DMMT principle
 if command -v shfmt >/dev/null 2>&1; then
     print_status $YELLOW "   🎨 Checking shell script formatting..."
-    if shfmt -d -i 2 -ci -s . >/dev/null 2>&1; then
-        print_status $GREEN "   ✅ Shell script formatting is correct"
+    if ! shfmt -d -i 2 -ci -s . >/dev/null 2>&1; then
+        print_status $YELLOW "   🛠 Auto-fixing shell script formatting..."
+        if shfmt -w -i 2 -ci -s . >/dev/null 2>&1; then
+            print_status $GREEN "   ✅ Shell scripts auto-formatted successfully"
+            # Re-stage the formatted files
+            git add -u >/dev/null 2>&1 || true
+        else
+            print_status $RED "   ❌ Auto-fix failed - manual intervention required"
+            print_status $BLUE "   Try: shfmt -w -i 2 -ci -s ."
+            FAILED=1
+        fi
     else
-        print_status $RED "   ❌ Shell script formatting issues found"
-        print_status $BLUE "   Fix: shfmt -w -i 2 -ci -s ."
-        FAILED=1
+        print_status $GREEN "   ✅ Shell script formatting is correct"
     fi
 else
     print_status $YELLOW "   ⚠️  shfmt not found - install for shell script formatting validation"

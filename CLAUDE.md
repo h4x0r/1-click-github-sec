@@ -102,6 +102,12 @@ DMMT is inspired by the UK power plug design: it's physically impossible to inse
 - Easily reversible if needed
 - Industry-standard best practices
 
+**Implemented Auto-Fixes:**
+- **Shell formatting** (`shfmt`): Auto-formats on pre-push, re-stages files
+- **SHA pinning**: Auto-pins unpinned GitHub Actions to commit SHAs
+- **Log rotation**: Auto-deletes old logs (keep last 10, remove >30 days)
+- **Git hooks**: Auto-installs and updates security hooks
+
 **Guide with Clear Command (Minimal Thought):**
 - Multiple valid approaches, but we recommend one
 - Provide exact command to copy/paste
