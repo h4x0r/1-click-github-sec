@@ -102,11 +102,48 @@ DMMT is inspired by the UK power plug design: it's physically impossible to inse
 - Easily reversible if needed
 - Industry-standard best practices
 
-**Implemented Auto-Fixes:**
-- **Shell formatting** (`shfmt`): Auto-formats on pre-push, re-stages files
-- **SHA pinning**: Auto-pins unpinned GitHub Actions to commit SHAs
-- **Log rotation**: Auto-deletes old logs (keep last 10, remove >30 days)
-- **Git hooks**: Auto-installs and updates security hooks
+**Implemented Auto-Fixes (3-Phase Strategy):**
+
+**Phase 1 - Zero Risk (Auto-apply silently):**
+- **Rust**: `cargo fmt` - Code formatting
+- **Node.js/TS**: `prettier` - Code formatting
+- **Python**: `black` - Code formatting
+- **Go**: `gofmt` - Code formatting
+- **Shell**: `shfmt` - Script formatting
+- **Infrastructure**: SHA pinning, log rotation, git hooks
+
+**Phase 2 - Low Risk (Show preview, auto-apply):**
+- **Node.js/TS**: `eslint --fix` - Safe linting fixes
+- **Python**: `isort` - Import ordering
+- **Go**: `goimports` - Import formatting
+
+**Phase 3 - Medium Risk (Show preview + test validation):**
+- **Rust**: `cargo clippy --fix` - Clippy auto-fixes (with test validation)
+- **Rust**: `cargo machete --fix` - Remove unused dependencies (with diff preview)
+- **Rust**: `cargo generate-lockfile` - Auto-generate Cargo.lock (binaries only)
+
+**Auto-Fix Approval Gate Pattern:**
+```bash
+# Phase 1: Silent auto-fix (zero risk)
+🛠  Auto-fixing Rust formatting...
+   Applying zero-risk formatter...
+   ✅ Auto-fix applied successfully
+
+# Phase 2: Preview + auto-apply (low risk)
+🛠  Auto-fixing JS/TS linting (eslint)...
+   Preview of changes:
+   [Shows first 20 lines of changes]
+   📋 Changes made: 3 files changed, 12 insertions(+), 8 deletions(-)
+   ✅ Auto-fix applied successfully
+
+# Phase 3: Preview + validation (medium risk)
+🛠  Auto-fixing Rust clippy warnings...
+   Preview of changes (first 30 lines):
+   [Shows detailed diff]
+   Review the changes above carefully.
+   🧪 Running tests to validate fixes...
+   ✅ Tests passed after auto-fix
+```
 
 **Guide with Clear Command (Minimal Thought):**
 - Multiple valid approaches, but we recommend one

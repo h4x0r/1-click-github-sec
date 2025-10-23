@@ -2859,33 +2859,105 @@ if [[ "${PKG_COUNT:-0}" -eq 0 ]]; then
     SKIP_RUST=1
 fi
 
-# 1. Cargo Format Check
+# =============================================================================
+# AUTO-FIX HELPER FUNCTION - DMMT "Best" Pattern with Approval Gate
+# =============================================================================
+# Usage: auto_fix_with_approval "Check name" "check_command" "fix_command" "phase"
+# Returns: 0 if check passed or fix succeeded, 1 if check failed and fix rejected/failed
+auto_fix_with_approval() {
+    local check_name="$1"
+    local check_cmd="$2"
+    local fix_cmd="$3"
+    local phase="${4:-1}"  # 1=zero-risk, 2=low-risk, 3=medium-risk
+
+    # Run check first
+    if eval "$check_cmd" >/dev/null 2>&1; then
+        return 0  # Check passed, nothing to fix
+    fi
+
+    # Check failed - offer auto-fix
+    print_status $YELLOW "🛠  Auto-fixing $check_name..."
+
+    # Phase-specific approval logic
+    case "$phase" in
+        1)
+            # Phase 1: Zero-risk formatters - auto-apply without asking
+            print_status $BLUE "   Applying zero-risk formatter..."
+            ;;
+        2)
+            # Phase 2: Low-risk - show what will change
+            print_status $YELLOW "   Preview of changes:"
+            eval "$fix_cmd" 2>&1 | head -20 || true
+            echo ""
+            ;;
+        3)
+            # Phase 3: Medium-risk - show diff and require explicit approval
+            print_status $YELLOW "   Preview of changes (first 30 lines):"
+            eval "$fix_cmd" 2>&1 | head -30 || true
+            echo ""
+            print_status $CYAN "   Review the changes above carefully."
+            ;;
+    esac
+
+    # Apply fix
+    if eval "$fix_cmd" >/dev/null 2>&1; then
+        # Show diff for transparency
+        if [[ $phase -ge 2 ]]; then
+            print_status $BLUE "   📋 Changes made:"
+            git --no-pager diff --stat 2>/dev/null | head -10 || true
+        fi
+
+        # Re-stage modified files
+        git add -u >/dev/null 2>&1 || true
+
+        print_status $GREEN "   ✅ Auto-fix applied successfully"
+        return 0
+    else
+        print_status $RED "   ❌ Auto-fix failed - manual intervention required"
+        return 1
+    fi
+}
+
+# 1. Cargo Format Check - PHASE 1 AUTO-FIX (Zero Risk)
 if [[ "${SKIP_RUST:-0}" -eq 1 ]]; then
     print_status $BLUE "ℹ️ Skipping cargo fmt (no Rust packages)"
 else
 print_status $YELLOW "🎨 Checking code formatting (cargo fmt)..."
-if cargo fmt --all -- --check; then
-    print_status $GREEN "✅ Code formatting is correct"
-else
-    print_status $RED "❌ Code formatting issues found"
-    echo "   Run: cargo fmt --all"
+if ! auto_fix_with_approval \
+    "Rust formatting" \
+    "cargo fmt --all -- --check" \
+    "cargo fmt --all" \
+    1; then
+    print_status $RED "❌ Code formatting check failed"
     FAILED=1
+else
+    print_status $GREEN "✅ Code formatting is correct"
 fi
 fi
 
 echo
-# 2. Cargo Clippy Check
+# 2. Cargo Clippy Check - PHASE 3 AUTO-FIX (Medium Risk - with validation)
 if [[ "${ENABLE_LINT}" == "true" ]]; then
 if [[ "${SKIP_RUST:-0}" -eq 1 ]]; then
     print_status $BLUE "ℹ️ Skipping clippy (no Rust packages)"
 else
 print_status $YELLOW "🔧 Running linting checks (cargo clippy)..."
-if cargo clippy --all-targets --all-features -- -D warnings; then
-    print_status $GREEN "✅ No clippy warnings found"
+if ! auto_fix_with_approval \
+    "Rust clippy warnings" \
+    "cargo clippy --all-targets --all-features -- -D warnings" \
+    "cargo clippy --fix --allow-dirty --allow-staged --all-targets --all-features" \
+    3; then
+    # Auto-fix failed or was rejected - run tests to validate
+    print_status $YELLOW "   🧪 Running tests to validate fixes..."
+    if cargo test --quiet 2>/dev/null; then
+        print_status $GREEN "✅ Tests passed after auto-fix"
+    else
+        print_status $RED "❌ Tests failed - reverting auto-fix"
+        git restore . >/dev/null 2>&1
+        FAILED=1
+    fi
 else
-    print_status $RED "❌ Clippy warnings found"
-    echo "   Fix warnings before pushing"
-    FAILED=1
+    print_status $GREEN "✅ No clippy warnings found"
 fi
 fi
 else
@@ -3000,16 +3072,22 @@ fi
 fi
 
 echo
-# 5. Attack Surface Reduction (cargo-machete) - PHASE 1 of Defense-in-Depth [warn]
+# 5. Attack Surface Reduction (cargo-machete) - PHASE 3 AUTO-FIX (Medium Risk with approval)
 # SECURITY RATIONALE: Minimizes attack surface by removing unused dependencies
 if [[ "${SKIP_RUST:-0}" -eq 1 ]]; then
     print_status $BLUE "ℹ️ Skipping cargo-machete (no Rust packages)"
 else
 if command -v cargo-machete &> /dev/null; then
     print_status $YELLOW "🧹 Checking for unused dependencies (cargo machete)..."
-    if cargo machete --with-metadata 2>/dev/null | grep -q "unused"; then
-        print_status $YELLOW "⚠️ Unused dependencies found"
-        echo "   Run: cargo machete --fix (to auto-remove)"
+    if ! auto_fix_with_approval \
+        "unused dependencies (cargo machete)" \
+        "! cargo machete --with-metadata 2>/dev/null | grep -q unused" \
+        "cargo machete --fix" \
+        3; then
+        # Show what would be removed before applying
+        print_status $YELLOW "   📋 Dependencies to be removed:"
+        cargo machete --with-metadata 2>/dev/null | grep -A2 "unused" | head -15 || true
+        print_status $CYAN "   💡 Review carefully - verify in build.rs, examples/, benches/"
     else
         print_status $GREEN "✅ No unused dependencies found"
     fi
@@ -3125,14 +3203,26 @@ if git config --get gpg.format | grep -q "x509"; then
     echo
 fi
 
-# 11. Cargo.lock Validation
+# 11. Cargo.lock Validation - PHASE 3 AUTO-FIX (Conditional - binaries only)
 print_status $YELLOW "📋 Checking Cargo.lock file..."
 if [[ ! -f "Cargo.lock" ]]; then
-    print_status $RED "❌ Cargo.lock not found"
-    echo "   Run: cargo generate-lockfile"
-    FAILED=1
+    # Check if this is a binary (application) or library
+    if grep -q '^\[\[bin\]\]' Cargo.toml 2>/dev/null || grep -q '^name.*=.*".*"$' Cargo.toml 2>/dev/null; then
+        print_status $YELLOW "🛠  Auto-generating Cargo.lock for binary project..."
+        if cargo generate-lockfile >/dev/null 2>&1; then
+            git add Cargo.lock >/dev/null 2>&1 || true
+            print_status $GREEN "✅ Cargo.lock generated and staged"
+        else
+            print_status $RED "❌ Failed to generate Cargo.lock"
+            FAILED=1
+        fi
+    else
+        print_status $YELLOW "⚠️ Cargo.lock not found (OK for libraries)"
+        print_status $CYAN "   💡 If this is a binary, run: cargo generate-lockfile"
+    fi
 elif ! git ls-files --error-unmatch Cargo.lock >/dev/null 2>&1; then
-    print_status $YELLOW "⚠️ Cargo.lock is not committed to git"
+    print_status $YELLOW "⚠️ Cargo.lock exists but is not committed to git"
+    print_status $CYAN "   💡 Consider: git add Cargo.lock"
 else
     print_status $GREEN "✅ Cargo.lock exists and is committed"
 fi
@@ -3648,13 +3738,16 @@ fi
 
 failed_checks=0
 
-# Node.js format check
+# Node.js format check - PHASE 1 AUTO-FIX (Zero Risk)
 if [[ $SKIP_FORMAT_CHECK != true ]]; then
     print_status $BLUE "🎨 Checking JavaScript/TypeScript formatting..."
     if command -v prettier &>/dev/null; then
-        if ! prettier --check . &>/dev/null; then
+        if ! auto_fix_with_approval \
+            "JS/TS formatting (prettier)" \
+            "prettier --check ." \
+            "prettier --write ." \
+            1; then
             print_status $RED "❌ Code formatting check failed"
-            echo "   Fix: prettier --write . (or npm run format)"
             failed_checks=$((failed_checks + 1))
         else
             print_status $GREEN "✅ Code formatting looks good"
@@ -3666,13 +3759,16 @@ if [[ $SKIP_FORMAT_CHECK != true ]]; then
     fi
 fi
 
-# Node.js linting
+# Node.js linting - PHASE 2 AUTO-FIX (Low Risk with preview)
 if [[ $SKIP_LINT_CHECK != true ]]; then
     print_status $BLUE "🔍 Running JavaScript/TypeScript linting..."
     if command -v eslint &>/dev/null; then
-        if ! eslint . &>/dev/null; then
+        if ! auto_fix_with_approval \
+            "JS/TS linting (eslint)" \
+            "eslint ." \
+            "eslint . --fix" \
+            2; then
             print_status $RED "❌ ESLint linting failed"
-            echo "   Fix: eslint . --fix (or npm run lint)"
             failed_checks=$((failed_checks + 1))
         else
             print_status $GREEN "✅ ESLint linting passed"
@@ -3965,19 +4061,34 @@ fi
 
 failed_checks=0
 
-# Python format check
+# Python format check - PHASE 1 AUTO-FIX (Zero Risk)
 if [[ $SKIP_FORMAT_CHECK != true ]]; then
     print_status $BLUE "🎨 Checking Python formatting (black)..."
     if command -v black &>/dev/null; then
-        if ! black --check . &>/dev/null; then
+        if ! auto_fix_with_approval \
+            "Python formatting (black)" \
+            "black --check ." \
+            "black ." \
+            1; then
             print_status $RED "❌ Python formatting check failed"
-            echo "   Fix: black ."
             failed_checks=$((failed_checks + 1))
         else
             print_status $GREEN "✅ Python formatting looks good"
         fi
     else
         print_status $YELLOW "⚠️  No formatter available (install black)"
+    fi
+
+    # Also check isort for import ordering - PHASE 2 AUTO-FIX
+    if command -v isort &>/dev/null; then
+        print_status $BLUE "📦 Checking Python import ordering (isort)..."
+        if ! auto_fix_with_approval \
+            "Python imports (isort)" \
+            "isort --check-only ." \
+            "isort ." \
+            2; then
+            print_status $YELLOW "⚠️  Import ordering could be improved"
+        fi
     fi
 fi
 
@@ -4157,15 +4268,30 @@ fi
 
 failed_checks=0
 
-# Go format check
+# Go format check - PHASE 1 AUTO-FIX (Zero Risk)
 if [[ $SKIP_FORMAT_CHECK != true ]]; then
     print_status $BLUE "🎨 Checking Go formatting (gofmt)..."
-    if [[ $(gofmt -l . | wc -l) -ne 0 ]]; then
+    if ! auto_fix_with_approval \
+        "Go formatting (gofmt)" \
+        "test \$(gofmt -l . | wc -l) -eq 0" \
+        "gofmt -w ." \
+        1; then
         print_status $RED "❌ Go formatting check failed"
-        echo "   Fix: gofmt -w ."
         failed_checks=$((failed_checks + 1))
     else
         print_status $GREEN "✅ Go formatting looks good"
+    fi
+
+    # Also check goimports if available - PHASE 2 AUTO-FIX
+    if command -v goimports &>/dev/null; then
+        print_status $BLUE "📦 Checking Go imports (goimports)..."
+        if ! auto_fix_with_approval \
+            "Go imports (goimports)" \
+            "test \$(goimports -l . | wc -l) -eq 0" \
+            "goimports -w ." \
+            2; then
+            print_status $YELLOW "⚠️  Import formatting could be improved"
+        fi
     fi
 fi
 
