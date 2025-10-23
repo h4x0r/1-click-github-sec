@@ -250,6 +250,8 @@ This framework integrates established open-source tools:
 **Issues/Support:** https://github.com/h4x0r/1-click-github-sec/issues
 
 **Author:** Albert Hui <albert@securityronin.com>
+
+**Enterprise Security Experience:**
 - Former Director, Risk Advisory at Deloitte
 - Former Global Security Architect at IBM
 - Former Incident Response Lead at HSBC
