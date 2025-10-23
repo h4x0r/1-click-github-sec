@@ -220,12 +220,21 @@ The framework supports customization via:
 ### Data Breach Statistics
 
 According to industry reports:
-- **IBM Cost of a Data Breach Report 2023:** Average breach cost $4.45M (15.3% increase since 2020)
-  [Source: https://www.ibm.com/reports/data-breach]
-- **Verizon DBIR 2023:** 74% of breaches involve the human element (error, privilege misuse, stolen credentials, or social engineering)
-  [Source: https://www.verizon.com/business/resources/reports/dbir/]
-- **GitGuardian State of Secrets Sprawl 2023:** 10 million secrets detected in public GitHub commits in 2022 (67% increase from 2021)
-  [Source: https://www.gitguardian.com/state-of-secrets-sprawl-report-2023]
+
+**IBM Cost of a Data Breach Report 2023**
+- Average breach cost: **$4.45M**
+- 15.3% increase since 2020
+- *Source: [IBM Security](https://www.ibm.com/reports/data-breach)*
+
+**Verizon Data Breach Investigations Report 2023**
+- **74%** of breaches involve the human element
+- Includes: errors, privilege misuse, stolen credentials, social engineering
+- *Source: [Verizon Enterprise](https://www.verizon.com/business/resources/reports/dbir/)*
+
+**GitGuardian State of Secrets Sprawl 2023**
+- **10 million** secrets detected in public GitHub commits in 2022
+- 67% increase from 2021
+- *Source: [GitGuardian Research](https://www.gitguardian.com/state-of-secrets-sprawl-report-2023)*
 
 *Note: These are industry statistics, not specific measurements from this tool.*
 
