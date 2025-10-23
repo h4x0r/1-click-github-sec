@@ -2,8 +2,6 @@
 
 ## Executive Summary
 
-**For busy executives: Read this section only (2 minutes)**
-
 **The Problem:**
 - Data breaches cost [$4.45M on average](https://www.ibm.com/reports/data-breach), 74% involve human error
 - [10 million secrets](https://www.gitguardian.com/state-of-secrets-sprawl-report-2023) leaked to public GitHub repos in 2022 (67% increase from 2021)
@@ -19,8 +17,16 @@ One command installs 35+ security controls across Rust, Node.js, Python, Go, and
 - **Open Source:** [Apache 2.0 license](https://github.com/h4x0r/1-click-github-sec), no vendor lock-in or telemetry
 
 **Installation:** One command, ~10 minutes
+
 ```bash
+# 1. Download installer
 curl -LO https://github.com/h4x0r/1-click-github-sec/releases/latest/download/install-security-controls.sh
+
+# 2. Verify integrity (REQUIRED - see docs for current checksum)
+curl -LO https://github.com/h4x0r/1-click-github-sec/releases/latest/download/install-security-controls.sh.sha256
+sha256sum -c install-security-controls.sh.sha256
+
+# 3. Execute
 chmod +x install-security-controls.sh && ./install-security-controls.sh
 ```
 
