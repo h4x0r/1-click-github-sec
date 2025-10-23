@@ -619,6 +619,76 @@ lychee docs/**/*.md README.md --config lychee.toml
 
 **Scope Limitation**: These guidelines are specific to GitHub + MkDocs + lychee workflows. Other documentation ecosystems (GitLab + Hugo, Bitbucket + Jekyll, etc.) may have different link format requirements.
 
+### Markdown Rendering and Visual Spacing
+
+**Critical Rule**: Markdown newlines in source don't guarantee visual spacing in rendered HTML. Always use proper formatting for visual separation.
+
+**Problem**: Adding newlines between markdown elements doesn't create visual spacing when rendered to HTML. Bold headers followed immediately by text or lists will appear clumped together without visual separation.
+
+**Visual Spacing Standards:**
+
+1. **Bold Section Headers Followed by Lists:**
+   ```markdown
+   # ❌ INCORRECT - No visual separation in rendered output
+   **Section Header:**
+   - First bullet point
+   - Second bullet point
+
+   # ✅ CORRECT - Blank line creates visual separation
+   **Section Header:**
+
+   - First bullet point
+   - Second bullet point
+   ```
+
+2. **Bold Section Headers Followed by Paragraphs:**
+   ```markdown
+   # ❌ INCORRECT - Header runs into paragraph
+   **Section Header:**
+   This is the paragraph text that follows...
+
+   # ✅ CORRECT - Blank line creates visual separation
+   **Section Header:**
+
+   This is the paragraph text that follows...
+   ```
+
+3. **Multi-Line Text Blocks:**
+   ```markdown
+   # ❌ INCORRECT - Lines run together
+   First line of text
+   Second line of text
+
+   # ✅ CORRECT - Use bullets or explicit paragraphs
+   - First line of text
+   - Second line of text
+
+   # OR use double newline for separate paragraphs
+   First paragraph.
+
+   Second paragraph.
+   ```
+
+**Validation Process:**
+1. Preview rendered output (GitHub preview, MkDocs serve)
+2. Check for visual clumping or lack of spacing
+3. Add blank lines between different content types
+4. Verify rendering after changes
+
+**Common Failure Patterns:**
+- ❌ Bold header immediately followed by bullet list (no blank line)
+- ❌ Bold header immediately followed by paragraph (no blank line)
+- ❌ Multiple text lines without bullets or paragraph breaks
+- ❌ Assuming source newlines create visual spacing
+
+**Success Pattern:**
+- ✅ Blank line after every bold section header
+- ✅ Blank line between different content types
+- ✅ Use bullets for multi-line lists
+- ✅ Test rendering to verify visual spacing
+
+**Lesson**: Markdown is **whitespace-sensitive for rendering**. Source code newlines don't equal visual spacing - you must use blank lines between structural elements for proper HTML rendering.
+
 ### Preferred Development Tools
 
 **Critical Rule**: Use the fastest, most reliable tools available for common operations.
