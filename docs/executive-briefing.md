@@ -276,8 +276,7 @@ This framework integrates established open-source tools:
 
 ### Author
 
-**Albert Hui** <albert@securityronin.com>
-[LinkedIn Profile](https://www.linkedin.com/in/alberthui)
+**Albert Hui** <albert@securityronin.com> [![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=flat-square&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/alberthui)
 
 **Enterprise Security Experience:**
 
