@@ -12,7 +12,7 @@
 
 ## What It Is
 
-1-Click GitHub Security is an open-source security framework that bundles industry-standard security tools into git hooks and CI/CD workflows. Source code available on GitHub: <https://github.com/h4x0r/1-click-github-sec>
+1-Click GitHub Security is an open-source security framework that bundles industry-standard security tools into git hooks and CI/CD workflows. [Source code available on GitHub](https://github.com/h4x0r/1-click-github-sec).
 
 ### The Problem It Solves
 
@@ -22,15 +22,13 @@ Development teams need to integrate multiple security tools across different lan
 
 The framework provides:
 
-**Pre-Push Security Checks (Design Target: < 60 seconds)**
-Reference: <https://h4x0r.github.io/1-click-github-sec/installation#expected-timings>
+**[Pre-Push Security Checks](https://h4x0r.github.io/1-click-github-sec/installation#expected-timings) (Design Target: < 60 seconds)**
 - Secret scanning via gitleaks (~2s estimated)
 - Vulnerability scanning per language (~5-20s estimated)
 - License compliance checks (~5s estimated)
 - Code quality validation (~15s estimated)
 
-**Supported Security Tools by Language**
-Reference: <https://h4x0r.github.io/1-click-github-sec/architecture#language-detection>
+**[Supported Security Tools by Language](https://h4x0r.github.io/1-click-github-sec/architecture#language-detection)**
 - **Rust:** cargo-deny, cargo-audit, clippy
 - **Node.js:** npm audit, retire.js, ESLint security plugins
 - **Python:** safety, bandit, pip-audit
@@ -73,7 +71,7 @@ The installer is a single bash script requiring only:
 
 ### 4. **Open Source and Auditable**
 
-- Full source code available: <https://github.com/h4x0r/1-click-github-sec>
+- [Full source code available on GitHub](https://github.com/h4x0r/1-click-github-sec)
 - Apache 2.0 License for commercial use
 - All security decisions logged to `.security-controls/logs/`
 - Transparent operation with no telemetry or external reporting
@@ -99,7 +97,7 @@ chmod +x install-security-controls.sh
 ./install-security-controls.sh
 ```
 
-Full installation documentation: <https://h4x0r.github.io/1-click-github-sec/installation>
+[Full installation documentation](https://h4x0r.github.io/1-click-github-sec/installation)
 
 ### What Gets Installed
 
@@ -170,9 +168,9 @@ The framework incorporates practices from:
 ### Open Source Project
 
 - **License:** Apache 2.0 (commercial use permitted)
-- **Repository:** <https://github.com/h4x0r/1-click-github-sec>
-- **Documentation:** <https://h4x0r.github.io/1-click-github-sec/>
-- **Issue Tracking:** GitHub Issues for bug reports and feature requests
+- **[Repository](https://github.com/h4x0r/1-click-github-sec)**
+- **[Documentation](https://h4x0r.github.io/1-click-github-sec/)**
+- **Issue Tracking:** [GitHub Issues](https://github.com/h4x0r/1-click-github-sec/issues) for bug reports and feature requests
 
 ---
 
@@ -214,20 +212,17 @@ The framework supports customization via:
 
 According to industry reports:
 
-#### IBM Cost of a Data Breach Report 2023
+#### [IBM Cost of a Data Breach Report 2023](https://www.ibm.com/reports/data-breach)
 - Average breach cost: **$4.45M**
 - 15.3% increase since 2020
-- Source: <https://www.ibm.com/reports/data-breach>
 
-#### Verizon Data Breach Investigations Report 2023
+#### [Verizon Data Breach Investigations Report 2023](https://www.verizon.com/business/resources/reports/dbir/)
 - **74%** of breaches involve the human element
 - Includes: errors, privilege misuse, stolen credentials, social engineering
-- Source: <https://www.verizon.com/business/resources/reports/dbir/>
 
-#### GitGuardian State of Secrets Sprawl 2023
+#### [GitGuardian State of Secrets Sprawl 2023](https://www.gitguardian.com/state-of-secrets-sprawl-report-2023)
 - **10 million** secrets detected in public GitHub commits in 2022
 - 67% increase from 2021
-- Source: <https://www.gitguardian.com/state-of-secrets-sprawl-report-2023>
 
 *Note: These are industry statistics, not specific measurements from this tool.*
 
@@ -236,37 +231,33 @@ According to industry reports:
 This framework integrates established open-source tools:
 
 #### Secret Detection
-- **gitleaks** - 23.7k GitHub stars
+- [**gitleaks**](https://github.com/gitleaks/gitleaks) - 23.7k GitHub stars
 - Purpose: Detect and prevent secrets in git repos
-- Source: <https://github.com/gitleaks/gitleaks>
 
 #### Static Analysis
-- **Semgrep** - 13.1k GitHub stars
+- [**Semgrep**](https://github.com/semgrep/semgrep) - 13.1k GitHub stars
 - Purpose: Static application security testing (SAST)
-- Source: <https://github.com/semgrep/semgrep>
 
 #### Rust Security
-- **cargo-audit** - Rust advisory database integration
+- [**cargo-audit**](https://github.com/rustsec/rustsec) - Rust advisory database integration
 - Purpose: Vulnerability scanning for Rust dependencies
-- Source: <https://github.com/rustsec/rustsec>
 
 #### Node.js Security
-- **npm audit** - Built into npm
+- [**npm audit**](https://docs.npmjs.com/cli/commands/npm-audit) - Built into npm
 - Purpose: JavaScript dependency vulnerability scanning
-- Source: <https://docs.npmjs.com/cli/commands/npm-audit>
 
 ---
 
 ## Technical Support
 
-**Documentation:** <https://h4x0r.github.io/1-click-github-sec/>
-**Source Code:** <https://github.com/h4x0r/1-click-github-sec>
-**Issues/Support:** <https://github.com/h4x0r/1-click-github-sec/issues>
+- **[Documentation](https://h4x0r.github.io/1-click-github-sec/)**
+- **[Source Code](https://github.com/h4x0r/1-click-github-sec)**
+- **[Issues/Support](https://github.com/h4x0r/1-click-github-sec/issues)**
 
 ### Author
 
 **Albert Hui** <albert@securityronin.com>
-LinkedIn: <https://www.linkedin.com/in/alberthui>
+[LinkedIn Profile](https://www.linkedin.com/in/alberthui)
 
 **Enterprise Security Experience:**
 
