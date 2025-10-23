@@ -2,11 +2,31 @@
 
 ## Executive Summary
 
-**Bottom Line:** 1-Click GitHub Security provides a unified security framework that installs with a single command, implementing pre-commit and CI/CD security controls across multiple programming languages.
+**For busy executives: Read this section only (2 minutes)**
 
-**Key Value:** Integrates established security tools (gitleaks, cargo-deny, npm audit, bandit, govulncheck) into automated workflows, enforcing security checks before code reaches your repository.
+**The Problem:**
+- Data breaches cost [$4.45M on average](https://www.ibm.com/reports/data-breach), 74% involve human error
+- [10 million secrets](https://www.gitguardian.com/state-of-secrets-sprawl-report-2023) leaked to public GitHub repos in 2022 (67% increase from 2021)
+- Manual security tool integration is time-consuming and inconsistently applied across teams
 
-**Technical Scope:** Supports Rust, Node.js, Python, Go, and generic projects with language-specific security tooling integrated into git hooks and GitHub Actions workflows.
+**The Solution:**
+One command installs 35+ security controls across Rust, Node.js, Python, Go, and generic projects. Blocks secrets, vulnerabilities, and policy violations before code reaches your repository.
+
+**Key Benefits:**
+- **Fast:** Pre-push security checks complete in < 60 seconds
+- **Automated:** Fixes issues automatically where safe, blocks critical problems
+- **Zero Dependencies:** Single bash script, works on any Unix system
+- **Open Source:** [Apache 2.0 license](https://github.com/h4x0r/1-click-github-sec), no vendor lock-in or telemetry
+
+**Installation:** One command, ~10 minutes
+```bash
+curl -LO https://github.com/h4x0r/1-click-github-sec/releases/latest/download/install-security-controls.sh
+chmod +x install-security-controls.sh && ./install-security-controls.sh
+```
+
+**Evaluation:** Try on non-critical repository, measure impact over 1-2 weeks, assess fit with existing tools.
+
+**Next Steps:** [Full documentation](https://h4x0r.github.io/1-click-github-sec/) | [Technical details below](#what-it-is)
 
 ---
 
