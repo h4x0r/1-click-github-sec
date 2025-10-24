@@ -5019,9 +5019,8 @@ generate_merged_security_workflow() {
 # 🚫 MANUAL EDITS TO THIS FILE WILL BE LOST ON NEXT UPGRADE
 #
 # This workflow is generated from:
-#   - Template: 1cgs-security v3.0.0 (merged: security + pinning)
 #   - Config: .security-controls/config.yml
-#   - Installer: v0.9.0
+#   - Installer: $INSTALLER_VERSION
 #   - Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)
 #
 # To customize this workflow:

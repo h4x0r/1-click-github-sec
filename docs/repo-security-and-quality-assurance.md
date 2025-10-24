@@ -335,11 +335,19 @@ repos:
 
 ### Layer 3: CI/CD Workflows (GitHub Actions)
 
-Five specialized repository workflows for continuous validation:
+Six specialized workflows for continuous validation:
 
-**Note**: This repository does NOT use the installer-generated `1cgs-security.yml` workflow. Instead, it uses enhanced custom workflows as part of the "dogfooding plus" philosophy - we use more security controls than we provide to users.
+**Dogfooding Plus**: This repository uses BOTH the installer-generated `1cgs-security.yml` (proving we use what we provide to users) AND enhanced custom workflows (demonstrating we go beyond what we provide).
 
-#### 1. `quality-assurance.yml`
+#### 1. `1cgs-security.yml`
+- **Purpose**: Auto-generated security workflow from `.security-controls/config.yml`
+- **Generation**: Created by installer from config-driven templates (v0.9.0+)
+- **Tools**: Language-specific security scanning (gitleaks, cargo-deny, CodeQL, etc.)
+- **Jobs**: SHA pinning validation and basic security controls
+- **Warning**: AUTO-GENERATED - DO NOT EDIT (modify config.yml and re-run installer)
+- **Dogfooding**: Demonstrates the installer works and provides baseline security controls
+
+#### 2. `quality-assurance.yml`
 - **Purpose**: Comprehensive quality and functional validation with dogfooding plus compliance
 - **Tools**: pinactlite, documentation validation scripts, functional synchronization
 - **Jobs**:
@@ -351,7 +359,7 @@ Five specialized repository workflows for continuous validation:
 - **Security**: Validates repository implements ALL security controls from installer templates
 - **Dogfooding Plus**: Ensures we use everything we provide to users
 
-#### 2. `security-scan.yml`
+#### 3. `security-scan.yml`
 - **Purpose**: Unified security scanning and threat detection
 - **Tools**: CodeQL, Trivy, gitleaks, cargo-deny
 - **Jobs**:
@@ -363,7 +371,7 @@ Five specialized repository workflows for continuous validation:
 - **Security**: SARIF uploads to GitHub Security tab, comprehensive threat coverage, ALL BLOCKING
 - **Architecture**: Parallel execution with zero-compromise security posture
 
-#### 3. `update-action-pins.yml`
+#### 4. `update-action-pins.yml`
 - **Purpose**: Automated GitHub Actions SHA pinning updates
 - **Schedule**: Runs weekly to fetch latest action SHAs
 - **Tools**: GitHub API, automated SHA resolution
@@ -371,14 +379,14 @@ Five specialized repository workflows for continuous validation:
 - **Security**: Ensures workflows use verified, pinned action versions
 - **Integration**: Works with pinactlite validation to maintain supply chain security
 
-#### 4. `docs.yml`
+#### 5. `docs.yml`
 - **Purpose**: Documentation site generation and deployment
 - **Tools**: MkDocs with Material theme, lychee link validation
 - **Output**: GitHub Pages site deployment
 - **Triggers**: Push to main, PR validation
 - **Validation**: Cross-reference consistency, link checking
 
-#### 5. `release.yml`
+#### 6. `release.yml`
 - **Purpose**: Automated release process with security validation
 - **Dependencies**: Waits for Quality Assurance + Security Scanning workflows
 - **Checks**: Version consistency, changelog updates, artifact generation
@@ -418,7 +426,7 @@ When users run `./install-security-controls.sh`, the installer:
 3. Users can edit config.yml and re-run installer to customize their workflow
 
 **This Repository:**
-This repository maintains a config.yml for demonstration purposes, but does NOT use the generated `1cgs-security.yml` workflow (see Layer 3 note above). Instead, it uses enhanced custom workflows as part of "dogfooding plus".
+This repository maintains config.yml and uses the generated `1cgs-security.yml` workflow to demonstrate the installer works (dogfooding). Additionally, it has enhanced custom workflows as part of "dogfooding plus" - proving we use what we provide PLUS more.
 
 ---
 
