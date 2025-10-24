@@ -5384,7 +5384,7 @@ EOF
 # Generate CI workflow
 generate_ci_workflow() {
   if [[ $RUST_PROJECT == true ]]; then
-    cat <<'EOF'
+    cat <<EOF
 name: Security CI
 
 on:
@@ -5420,13 +5420,13 @@ jobs:
         fi
 
     - name: Install Rust toolchain
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       uses: dtolnay/rust-toolchain@$(get_action_sha "$DTOLNAY_RUST_TOOLCHAIN") # $(get_action_version "$DTOLNAY_RUST_TOOLCHAIN")
       with:
         toolchain: stable
 
     - name: Skip Security Audit (no Rust packages)
-      if: ${{ steps.rust.outputs.has != 'true' }}
+      if: \${{ steps.rust.outputs.has != 'true' }}
       run: echo "No Rust packages detected; skipping Security Audit job steps."
 
     - name: Cache dependencies
@@ -5439,34 +5439,34 @@ jobs:
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
           target/
-        key: ${{ runner.os }}-cargo-audit-${{ hashFiles('**/Cargo.lock') }}
+        key: \${{ runner.os }}-cargo-audit-\${{ hashFiles('**/Cargo.lock') }}
         restore-keys: |
-          ${{ runner.os }}-cargo-audit-
+          \${{ runner.os }}-cargo-audit-
 
     - name: Install cargo-audit and cargo-auditable
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       run: |
         cargo install --locked cargo-audit
         cargo install --locked cargo-auditable
 
     - name: Build with auditable metadata
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       run: cargo auditable build --release
 
     - name: Run cargo audit
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       run: cargo audit
 
     - name: Run cargo audit for dependencies
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       run: cargo audit --db advisory-db --json | tee audit-report.json
 
     - name: Run cargo audit on binary
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       run: cargo audit bin target/release/*
 
     - name: Upload audit report
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       uses: actions/upload-artifact@$(get_action_sha "$ACTIONS_UPLOAD_ARTIFACT_V4") # $(get_action_version "$ACTIONS_UPLOAD_ARTIFACT_V4")
       with:
         name: security-audit-report
@@ -5483,7 +5483,7 @@ jobs:
     - name: Run Gitleaks
       uses: gitleaks/gitleaks-action@$(get_action_sha "$GITLEAKS_ACTION_V2") # $(get_action_version "$GITLEAKS_ACTION_V2")
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: \${{ secrets.GITHUB_TOKEN }}
 
   vulnerability-scanning:
     name: Vulnerability Scanning
@@ -5532,24 +5532,24 @@ jobs:
         fi
 
     - name: Initialize CodeQL
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       uses: github/codeql-action/init@$(get_action_sha "$GITHUB_CODEQL_INIT_V3") # $(get_action_version "$GITHUB_CODEQL_INIT_V3")
       with:
         languages: rust
         queries: +security-and-quality
 
     - name: Install Rust toolchain
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       uses: dtolnay/rust-toolchain@$(get_action_sha "$DTOLNAY_RUST_TOOLCHAIN") # $(get_action_version "$DTOLNAY_RUST_TOOLCHAIN")
       with:
         toolchain: stable
 
     - name: Build project
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       run: cargo build --release
 
     - name: Perform CodeQL Analysis
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       uses: github/codeql-action/analyze@$(get_action_sha "$GITHUB_CODEQL_ANALYZE_V3") # $(get_action_version "$GITHUB_CODEQL_ANALYZE_V3")
 
   supply-chain:
@@ -5575,13 +5575,13 @@ jobs:
         fi
 
     - name: Install Rust toolchain
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       uses: dtolnay/rust-toolchain@$(get_action_sha "$DTOLNAY_RUST_TOOLCHAIN") # $(get_action_version "$DTOLNAY_RUST_TOOLCHAIN")
       with:
         toolchain: stable
 
     - name: Generate SBOM
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       run: |
         cargo install --locked cargo-auditable
         cargo auditable build --release
@@ -5589,11 +5589,11 @@ jobs:
         cargo cyclonedx --format json --output-file sbom.json
 
     - name: Skip Supply Chain (no Rust packages)
-      if: ${{ steps.rust.outputs.has != 'true' }}
+      if: \${{ steps.rust.outputs.has != 'true' }}
       run: echo "No Rust packages detected; skipping Supply Chain job steps."
 
     - name: Upload SBOM
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       uses: actions/upload-artifact@$(get_action_sha "$ACTIONS_UPLOAD_ARTIFACT_V4") # $(get_action_version "$ACTIONS_UPLOAD_ARTIFACT_V4")
       with:
         name: software-bill-of-materials
@@ -5623,23 +5623,23 @@ jobs:
         fi
 
     - name: Install Rust toolchain
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       uses: dtolnay/rust-toolchain@$(get_action_sha "$DTOLNAY_RUST_TOOLCHAIN") # $(get_action_version "$DTOLNAY_RUST_TOOLCHAIN")
       with:
         toolchain: stable
 
     - name: Install cargo-license
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       run: cargo install --locked cargo-license
 
     - name: Generate license report
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       run: |
         cargo license --json > licenses.json
         cargo license --tsv > licenses.tsv
 
     - name: Check for copyleft licenses
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       run: |
         COPYLEFT=$(cargo license --json | jq -r '.[] | select(.license | test("GPL-2.0|GPL-3.0|AGPL|LGPL"; "i")) | "\(.name): \(.license)"' || true)
         if [ -n "$COPYLEFT" ]; then
@@ -5650,7 +5650,7 @@ jobs:
         fi
 
     - name: Skip License Compliance (no Rust packages)
-      if: ${{ steps.rust.outputs.has != 'true' }}
+      if: \${{ steps.rust.outputs.has != 'true' }}
       run: echo "No Rust packages detected; skipping License Compliance job steps."
 
     - name: Upload license report
@@ -5684,23 +5684,23 @@ jobs:
         fi
 
     - name: Install Rust toolchain
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       uses: dtolnay/rust-toolchain@$(get_action_sha "$DTOLNAY_RUST_TOOLCHAIN") # $(get_action_version "$DTOLNAY_RUST_TOOLCHAIN")
       with:
         toolchain: stable
 
     - name: Build release binary
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       run: cargo build --release
 
     - name: Install binary analysis tools
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       run: |
         cargo install --locked cargo-binutils
         rustup component add llvm-tools-preview
 
     - name: Analyze binary for embedded secrets
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       run: |
         echo "🔍 Scanning binary for embedded secrets..."
         for binary in target/release/*; do
@@ -5717,7 +5717,7 @@ jobs:
         done
 
     - name: Check for debug symbols
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       run: |
         echo "🔍 Checking for debug symbols..."
         for binary in target/release/*; do
@@ -5731,7 +5731,7 @@ jobs:
         done
 
     - name: Upload binary analysis results
-      if: ${{ steps.rust.outputs.has == 'true' && hashFiles('binary-secrets.txt') != '' }}
+      if: \${{ steps.rust.outputs.has == 'true' && hashFiles('binary-secrets.txt') != '' }}
       uses: actions/upload-artifact@$(get_action_sha "$ACTIONS_UPLOAD_ARTIFACT_V4") # $(get_action_version "$ACTIONS_UPLOAD_ARTIFACT_V4")
       with:
         name: binary-analysis-results
@@ -5809,13 +5809,13 @@ jobs:
         fi
 
     - name: Install Rust toolchain
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       uses: dtolnay/rust-toolchain@$(get_action_sha "$DTOLNAY_RUST_TOOLCHAIN") # $(get_action_version "$DTOLNAY_RUST_TOOLCHAIN")
       with:
         toolchain: stable
 
     - name: Validate Cargo.lock
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       run: |
         echo "🔍 Validating Cargo.lock..."
         if [[ ! -f "Cargo.lock" ]]; then
@@ -5832,7 +5832,7 @@ jobs:
         echo "✅ Cargo.lock is valid and up-to-date"
 
     - name: Check for feature flag security
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       run: |
         echo "🔍 Checking feature flag configuration..."
         
@@ -5852,7 +5852,7 @@ jobs:
           fi
 
     - name: Skip Enhanced Security (no Rust packages)
-      if: ${{ steps.rust.outputs.has != 'true' }}
+      if: \${{ steps.rust.outputs.has != 'true' }}
       run: echo "No Rust packages detected; skipping Enhanced Security job steps."
 
   gitsign-verification:
@@ -5888,7 +5888,7 @@ jobs:
 
 EOF
   else
-    cat <<'EOF'
+    cat <<EOF
 name: Security CI
 
 on:
@@ -5909,7 +5909,7 @@ jobs:
     - name: Run Gitleaks
       uses: gitleaks/gitleaks-action@$(get_action_sha "$GITLEAKS_ACTION_V2") # $(get_action_version "$GITLEAKS_ACTION_V2")
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: \${{ secrets.GITHUB_TOKEN }}
 
 
   vulnerability-scanning:
@@ -6005,13 +6005,13 @@ jobs:
     - name: Initialize CodeQL
       uses: github/codeql-action/init@$(get_action_sha "$GITHUB_CODEQL_INIT_V3") # $(get_action_version "$GITHUB_CODEQL_INIT_V3")
       with:
-        languages: ${{ matrix.language }}
-        build-mode: ${{ matrix.build-mode }}
+        languages: \${{ matrix.language }}
+        build-mode: \${{ matrix.build-mode }}
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@$(get_action_sha "$GITHUB_CODEQL_ANALYZE_V3") # $(get_action_version "$GITHUB_CODEQL_ANALYZE_V3")
       with:
-        category: "/language:${{matrix.language}}"
+        category: "/language:\${{matrix.language}}"
 EOF
 }
 
