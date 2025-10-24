@@ -42,7 +42,7 @@ readonly CYAN='\033[0;36m'
 readonly NC='\033[0m' # No Color
 
 # Configuration
-readonly INSTALLER_VERSION="0.9.0"
+readonly INSTALLER_VERSION="0.7.0"
 # shellcheck disable=SC2034 # Placeholder for future use
 readonly REQUIRED_TOOLS_FILE="security-tools-requirements.txt"
 # shellcheck disable=SC2034 # Placeholder for future use
@@ -480,6 +480,7 @@ fetch_latest_action_pins() {
 }
 
 # Fallback versions if config file is missing
+# shellcheck disable=SC2034 # Variables used in workflow template generation
 use_fallback_action_pins() {
   ACTIONS_CHECKOUT_V4="692973e3d937129bcbf40652eb9f2f61becf3332@v4.1.7"
   ACTIONS_CHECKOUT_V5="08c6903cd8c0fde910a37f88322edcf5dd907a8@v5.0.0"
@@ -618,6 +619,7 @@ load_config() {
   if [[ ! -f "$config_file" ]]; then
     # No config file, use defaults
     CONFIG_PROJECT_NAME=$(basename "$(pwd)")
+    # shellcheck disable=SC2034 # Used in workflow template generation
     CONFIG_LANGUAGES=()
     CONFIG_SKIP_TOOLS=false
     return 0
