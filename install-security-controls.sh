@@ -2703,26 +2703,42 @@ if [[ -x .security-controls/bin/gitleakslite ]]; then
     fi
 fi
 
-# GitHub Actions pinning check
-print_status $YELLOW "📌 Checking GitHub Actions SHA pinning..."
-if [[ -x .security-controls/bin/pinactlite ]] && [[ -d .github/workflows ]]; then
-    if .security-controls/bin/pinactlite pincheck --dir .github/workflows --quiet; then
-        print_status $GREEN "✅ All GitHub Actions are properly pinned"
-    else
-        print_status $YELLOW "🛠  Auto-pinning unpinned references..."
-        set +e
-        .security-controls/bin/pinactlite autopin --dir .github/workflows --actions --images --quiet
-        rc=$?
-        set -e
-        if [[ $rc -eq 2 ]]; then
-            print_status $GREEN "✅ Auto-pinned all references successfully"
-            git --no-pager diff -- .github/workflows | sed -n '1,120p' || true
-            print_status $CYAN "📝 Changes staged - review with 'git diff .github/workflows'"
+# GitHub Actions pinning check (only if workflow files changed)
+WORKFLOW_FILES_CHANGED=0
+if git diff --cached --name-only --diff-filter=ACM | grep -q '^\.github/workflows/.*\.ya\?ml$'; then
+    WORKFLOW_FILES_CHANGED=1
+fi
+
+if [[ $WORKFLOW_FILES_CHANGED -eq 1 ]]; then
+    print_status $YELLOW "📌 Checking GitHub Actions SHA pinning (workflow files changed)..."
+    if [[ -x .security-controls/bin/pinactlite ]] && [[ -d .github/workflows ]]; then
+        if .security-controls/bin/pinactlite pincheck --dir .github/workflows --quiet; then
+            print_status $GREEN "✅ All GitHub Actions are properly pinned"
         else
-            print_status $RED "❌ Some references remain unpinned or autopin failed"
-            FAILED=1
+            print_status $YELLOW "🛠  Auto-pinning unpinned references..."
+            set +e
+            .security-controls/bin/pinactlite autopin --dir .github/workflows --actions --images --quiet
+            rc=$?
+            set -e
+            if [[ $rc -eq 2 ]]; then
+                print_status $GREEN "✅ Auto-pinned all references successfully"
+                git --no-pager diff -- .github/workflows | sed -n '1,120p' || true
+                print_status $CYAN "📝 Changes staged - review with 'git diff .github/workflows'"
+                git add .github/workflows/*.yml .github/workflows/*.yaml 2>/dev/null || true
+                print_status $CYAN "📝 Auto-pinned workflows re-staged"
+            else
+                print_status $RED "❌ Some references remain unpinned or autopin failed"
+                FAILED=1
+            fi
         fi
+        # Weekly CI workflow validates SHA validity (no network calls in pre-push)
+        print_status $CYAN "💡 Note: SHA validity checked weekly by CI (pinning-validation.yml)"
+    else
+        print_status $YELLOW "⚠️  pinactlite not found - skipping local pin check"
+        print_status $CYAN "💡 CI workflow will validate pinning on push"
     fi
+else
+    print_status $BLUE "⏭️  Skipping GitHub Actions pinning check (no workflow changes)"
 fi
 
 # Large files check
