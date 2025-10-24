@@ -385,6 +385,43 @@ Five specialized repository workflows for continuous validation:
 - **Security**: Cryptographic signing, checksum generation, supply chain protection
 - **Artifacts**: Installer scripts, checksums, release notes with security focus
 
+### Configuration Management
+
+#### `.security-controls/config.yml`
+
+**Purpose**: Configuration file for installer-generated workflows (v0.9.0+)
+
+This repository includes a config.yml file that demonstrates the configuration system used by the installer to generate the `1cgs-security.yml` workflow for user projects.
+
+**Key Features:**
+- **Project metadata**: Name and language detection
+- **Customization options**: Skip tool installation, add dependencies
+- **Auto-detection**: Languages detected automatically if not specified
+- **Config-driven generation**: Edit config → re-run installer → regenerate workflows
+
+**Example configuration:**
+```yaml
+version: "1.0"
+
+project:
+  name: "1-click-github-sec"
+  languages: []  # Auto-detected if empty
+
+customizations:
+  skip_tools: false  # Set true for CI environments
+```
+
+**Usage for Users:**
+When users run `./install-security-controls.sh`, the installer:
+1. Creates `.security-controls/config.yml` with project defaults
+2. Generates `1cgs-security.yml` workflow based on config + language detection
+3. Users can edit config.yml and re-run installer to customize their workflow
+
+**This Repository:**
+This repository maintains a config.yml for demonstration purposes, but does NOT use the generated `1cgs-security.yml` workflow (see Layer 3 note above). Instead, it uses enhanced custom workflows as part of "dogfooding plus".
+
+---
+
 ### Layer 4: Repository Configuration
 
 #### Secret Detection (Two-Layer Defense)
