@@ -130,8 +130,8 @@ update_installer_version() {
     return
   fi
 
-  # Update SCRIPT_VERSION variable
-  sed -i.bak "s/readonly SCRIPT_VERSION=\"[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\"/readonly SCRIPT_VERSION=\"${version}\"/g" "$installer"
+  # Update INSTALLER_VERSION variable
+  sed -i.bak "s/readonly INSTALLER_VERSION=\"[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\"/readonly INSTALLER_VERSION=\"${version}\"/g" "$installer"
   rm -f "${installer}.bak"
   log_success "Updated installer script version: $version"
 }
@@ -214,7 +214,7 @@ check_version_consistency() {
 
   # Check installer script
   if [[ -f "install-security-controls.sh" ]]; then
-    if grep -q "readonly SCRIPT_VERSION=\"${current_version}\"" install-security-controls.sh; then
+    if grep -q "readonly INSTALLER_VERSION=\"${current_version}\"" install-security-controls.sh; then
       log_success "✅ Installer script version: $current_version"
     else
       log_error "❌ Installer script version mismatch"
