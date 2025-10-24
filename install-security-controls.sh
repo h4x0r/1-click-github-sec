@@ -4787,7 +4787,7 @@ jobs:
 
     - name: Cache dependencies
       if: ${{ steps.rust.outputs.has == 'true' }}
-      uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4.0.2
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
       with:
         path: |
           ~/.cargo/bin/
@@ -4942,7 +4942,7 @@ jobs:
         cargo install --locked cargo-auditable
         cargo auditable build --release
         cargo install --locked cargo-cyclonedx
-        cargo cyclonedx --output-format json --output-file sbom.json
+        cargo cyclonedx --format json --output-file sbom.json
 
     - name: Skip Supply Chain (no Rust packages)
       if: ${{ steps.rust.outputs.has != 'true' }}
@@ -5087,12 +5087,11 @@ jobs:
         done
 
     - name: Upload binary analysis results
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: ${{ steps.rust.outputs.has == 'true' && hashFiles('binary-secrets.txt') != '' }}
       uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
       with:
         name: binary-analysis-results
         path: binary-secrets.txt
-      if: hashFiles('binary-secrets.txt') != ''
 
   dependency-confusion-check:
     name: Dependency Confusion Detection
