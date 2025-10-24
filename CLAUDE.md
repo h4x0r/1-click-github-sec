@@ -258,17 +258,24 @@ Sigstore Certificate Authority → GitHub OIDC Identity → gitsign Signing → 
 ### 8. **Dogfooding Plus Philosophy**
 > "If it's not good enough for us, it's not good enough for users"
 
+**Core Principle: Zero-Defect Deployment**
+> **"We can't let problems get installed by our users"**
+
+Every configuration file, template, and script that gets deployed to user projects MUST be validated before release. This is non-negotiable for a security tool vendor.
+
 - **Repository as Alpha Test**: This repository implements ALL security controls that the installer provides to users
 - **Enhanced Development Controls**: Additional controls specific to our development needs (tool sync, docs, releases)
 - **Functional Synchronization**: Automated verification that repo controls match installer templates
 - **Quality Assurance Through Use**: We discover issues in our daily development before users encounter them
 - **Trust Through Transparency**: Users can inspect our repository to see security controls in action
+- **Template Validation**: All configuration templates (deny.toml, .gitleaks.toml, etc.) are validated with real tools before shipping
 
 **Implementation Requirements:**
 - Every security control in installer templates must exist in repository workflows
 - Repository-only controls are clearly documented and justified
 - Automated sync tools prevent functional drift between installer and repository
 - Regular audits ensure dogfooding plus philosophy is maintained
+- **Pre-push template validation** blocks commits if configuration files have syntax errors or compatibility issues
 
 **Benefits:**
 - **Rapid Bug Discovery**: Issues surface during development before user deployment
