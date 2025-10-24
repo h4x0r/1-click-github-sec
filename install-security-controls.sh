@@ -3820,6 +3820,106 @@ else
 fi
 
 echo
+# ============================================================================
+# Template Validation - Prevent shipping broken configs to users
+# ============================================================================
+print_status $YELLOW "📋 Validating template files..."
+
+# Function to validate deny.toml with temporary Rust project
+validate_deny_toml() {
+    local config_file="$1"
+    local tmp_dir
+    tmp_dir=$(mktemp -d)
+
+    (
+        cd "$tmp_dir" || exit 1
+        cargo init --lib --name test-validation >/dev/null 2>&1
+
+        # Create Cargo.toml with MIT license to satisfy deny.toml license checks
+        cat > Cargo.toml << 'CARGOEOF'
+[package]
+name = "test-validation"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+CARGOEOF
+
+        cp "$OLDPWD/$config_file" ./deny.toml
+
+        # Run cargo-deny check - only fail on config parsing errors, not policy violations
+        local output
+        output=$(cargo-deny check --config deny.toml 2>&1)
+
+        # Check for config parsing errors (not policy violations)
+        if echo "$output" | grep -q "could not parse\|invalid\|unknown field\|expected"; then
+            rm -rf "$tmp_dir"
+            return 1
+        fi
+
+        rm -rf "$tmp_dir"
+        return 0
+    )
+}
+
+# Function to validate .gitleaks.toml
+validate_gitleaks_toml() {
+    local config_file="$1"
+
+    # Use gitleaks to validate config syntax
+    if gitleaks detect --config="$config_file" --no-git --baseline-path=/dev/null >/dev/null 2>&1; then
+        return 0
+    else
+        # Check if it's just "no leaks found" (which means config is valid)
+        if gitleaks detect --config="$config_file" --no-git --baseline-path=/dev/null 2>&1 | grep -q "no leaks found"; then
+            return 0
+        else
+            return 1
+        fi
+    fi
+}
+
+# Validate deny.toml if it exists
+if [[ -f "deny.toml" ]]; then
+    print_status $YELLOW "   🦀 Validating deny.toml template..."
+    if command -v cargo-deny >/dev/null 2>&1 && command -v cargo >/dev/null 2>&1; then
+        if validate_deny_toml "deny.toml"; then
+            print_status $GREEN "   ✅ deny.toml template is valid"
+        else
+            print_status $RED "   ❌ deny.toml template has errors"
+            print_status $BLUE "   Test locally: cargo-deny check --config deny.toml"
+            FAILED=1
+        fi
+    else
+        print_status $YELLOW "   ⚠️  cargo-deny or cargo not installed - skipping deny.toml validation"
+        print_status $BLUE "   Install: cargo install cargo-deny"
+    fi
+fi
+
+# Validate .gitleaks.toml if it exists
+if [[ -f ".gitleaks.toml" ]]; then
+    print_status $YELLOW "   🔐 Validating .gitleaks.toml template..."
+    if command -v gitleaks >/dev/null 2>&1; then
+        if validate_gitleaks_toml ".gitleaks.toml"; then
+            print_status $GREEN "   ✅ .gitleaks.toml template is valid"
+        else
+            print_status $RED "   ❌ .gitleaks.toml template has syntax errors"
+            print_status $BLUE "   Test locally: gitleaks detect --config=.gitleaks.toml --no-git"
+            FAILED=1
+        fi
+    else
+        print_status $YELLOW "   ⚠️  gitleaks not installed - skipping .gitleaks.toml validation"
+        print_status $BLUE "   Install: brew install gitleaks (macOS) or download from GitHub"
+    fi
+fi
+
+# If no template files found, skip
+if [[ ! -f "deny.toml" ]] && [[ ! -f ".gitleaks.toml" ]]; then
+    print_status $BLUE "   ⏭️  No template files to validate"
+fi
+
+echo
 # License header validation (fail fast)
 print_status $YELLOW "📄 Checking license compliance..."
 missing_license_headers=0
