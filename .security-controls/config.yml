@@ -1,0 +1,19 @@
+# 1-Click GitHub Security - Configuration
+# Generated workflows are customized based on this config
+# Edit this file and re-run installer to regenerate workflows
+
+version: "1.0"
+
+project:
+  name: "1-click-github-sec"
+  languages: []  # Auto-detected if empty
+
+# Customizations for generated workflows
+customizations:
+  # Example: skip tool installation (for CI environments)
+  skip_tools: false
+
+  # Example: Linux build dependencies
+  # linux_dependencies:
+  #   - pkg-config
+  #   - libleptonica-dev

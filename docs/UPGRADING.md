@@ -13,9 +13,30 @@ This guide explains how to upgrade your security controls installation to the la
 
 ## Overview
 
-Starting with v0.8.0, the installer uses a **manifest-based upgrade system** that intelligently handles workflow customizations.
+Starting with v0.9.0, the installer uses a **config-driven workflow generation system** for maximum simplicity and transparency.
 
-### What's New in v0.8.0
+### What's New in v0.9.0
+
+**Major Simplification - Breaking Changes:**
+
+- **Config-driven generation**: Workflows are now pure generated artifacts from `.security-controls/config.yml`
+- **Merged workflows**: `security.yml` + `pinning-validation.yml` → `1cgs-security.yml` (single comprehensive workflow)
+- **Prominent warnings**: All generated workflows have clear "DO NOT EDIT" headers
+- **Simplified manifest**: Removed hash-based customization detection (YAGNI for 2 controlled users)
+- **Auto-cleanup**: Old workflows automatically removed during upgrade
+- **No backward compatibility**: v0.8.0 → v0.9.0 is not backward compatible (by design)
+
+**How to customize workflows in v0.9.0:**
+1. Edit `.security-controls/config.yml`
+2. Re-run installer
+3. Commit both `config.yml` + generated workflow
+
+**Migration Path:**
+- v0.8.0 installations: Automatically detected and upgraded
+- Existing customizations: Preserved in `config.yml` (see nameback example)
+- Old workflows: Deleted and replaced with `1cgs-security.yml`
+
+### What Was New in v0.8.0 (Removed in v0.9.0)
 
 - **Manifest tracking**: All installed components tracked in `.security-controls/manifest.yml`
 - **Customization detection**: Automatically detects if you've modified workflows
