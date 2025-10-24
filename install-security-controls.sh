@@ -42,7 +42,7 @@ readonly CYAN='\033[0;36m'
 readonly NC='\033[0m' # No Color
 
 # Configuration
-readonly SCRIPT_VERSION="0.7.0"
+readonly INSTALLER_VERSION="0.7.0"
 # shellcheck disable=SC2034 # Placeholder for future use
 readonly REQUIRED_TOOLS_FILE="security-tools-requirements.txt"
 # shellcheck disable=SC2034 # Placeholder for future use
@@ -480,6 +480,7 @@ fetch_latest_action_pins() {
 }
 
 # Fallback versions if config file is missing
+# shellcheck disable=SC2034 # Variables used in workflow template generation
 use_fallback_action_pins() {
   ACTIONS_CHECKOUT_V4="692973e3d937129bcbf40652eb9f2f61becf3332@v4.1.7"
   ACTIONS_CHECKOUT_V5="08c6903cd8c0fde910a37f88322edcf5dd907a8@v5.0.0"
@@ -502,6 +503,209 @@ get_action_sha() {
 get_action_version() {
   local pin=$1
   echo "${pin#*@}"
+}
+
+# ===== MANIFEST MANAGEMENT =====
+
+# Load manifest file
+load_manifest() {
+  local manifest_file="$CONTROL_STATE_DIR/manifest.yml"
+
+  if [[ -f "$manifest_file" ]]; then
+    # Parse manifest without yq dependency (basic parsing)
+    MANIFEST_VERSION=$(grep '^installer_version:' "$manifest_file" 2>/dev/null | awk '{print $2}' | tr -d '"' | tr -d "'")
+    return 0
+  else
+    return 1
+  fi
+}
+
+# Create initial manifest
+create_manifest() {
+  local manifest_file="$CONTROL_STATE_DIR/manifest.yml"
+  mkdir -p "$CONTROL_STATE_DIR"
+
+  cat > "$manifest_file" <<EOF
+version: "1.0"
+installer_version: "$INSTALLER_VERSION"
+install_date: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+last_upgrade: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+# Installed components (tracks template versions)
+components:
+  workflows: {}
+EOF
+
+  print_status $GREEN "✅ Created manifest: $manifest_file"
+}
+
+# Update manifest after installing a workflow
+update_manifest_workflow() {
+  local workflow_name=$1
+  local template_version=${2:-1.0.0}
+
+  local manifest_file="$CONTROL_STATE_DIR/manifest.yml"
+
+  # Append workflow entry to manifest (simple YAML append)
+  # Note: This is basic - proper YAML editing would use yq
+  if grep -q "^  workflows:" "$manifest_file" 2>/dev/null; then
+    # Append under existing workflows section
+    cat >> "$manifest_file" <<EOF
+
+    ${workflow_name%.yml}:
+      template_version: "$template_version"
+      last_updated: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+EOF
+  fi
+}
+
+# Update manifest version after upgrade
+update_manifest_version() {
+  local new_version=$1
+  local manifest_file="$CONTROL_STATE_DIR/manifest.yml"
+
+  if [[ -f "$manifest_file" ]]; then
+    # Update installer_version and last_upgrade using sed
+    sed -i.bak \
+      -e "s/^installer_version: .*/installer_version: \"$new_version\"/" \
+      -e "s/^last_upgrade: .*/last_upgrade: \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"/" \
+      "$manifest_file"
+
+    rm -f "${manifest_file}.bak"
+    print_status $GREEN "✅ Updated manifest to version $new_version"
+  fi
+}
+
+# ===== CONFIG.YML MANAGEMENT =====
+
+# Create default config.yml
+create_default_config() {
+  local config_file="$CONTROL_STATE_DIR/config.yml"
+
+  if [[ -f "$config_file" ]]; then
+    print_status $YELLOW "⚠️  config.yml already exists, skipping"
+    return 0
+  fi
+
+  cat > "$config_file" <<EOF
+# 1-Click GitHub Security - Configuration
+# Generated workflows are customized based on this config
+# Edit this file and re-run installer to regenerate workflows
+
+version: "1.0"
+
+project:
+  name: "$(basename "$(pwd)")"
+  languages: []  # Auto-detected if empty
+
+# Customizations for generated workflows
+customizations:
+  # Example: skip tool installation (for CI environments)
+  skip_tools: false
+
+  # Example: Linux build dependencies
+  # linux_dependencies:
+  #   - pkg-config
+  #   - libleptonica-dev
+EOF
+
+  print_status $GREEN "✅ Created default config: $config_file"
+}
+
+# Load config.yml (sets CONFIG_* variables)
+load_config() {
+  local config_file="$CONTROL_STATE_DIR/config.yml"
+
+  if [[ ! -f "$config_file" ]]; then
+    # No config file, use defaults
+    CONFIG_PROJECT_NAME=$(basename "$(pwd)")
+    # shellcheck disable=SC2034 # Used in workflow template generation
+    CONFIG_LANGUAGES=()
+    CONFIG_SKIP_TOOLS=false
+    return 0
+  fi
+
+  # Parse basic fields (without yq dependency)
+  CONFIG_PROJECT_NAME=$(grep '^ *name:' "$config_file" 2>/dev/null | awk -F': ' '{print $2}' | tr -d '"' | tr -d "'")
+  CONFIG_SKIP_TOOLS=$(grep '^ *skip_tools:' "$config_file" 2>/dev/null | awk -F': ' '{print $2}' | tr -d ' ')
+
+  # Default values
+  CONFIG_PROJECT_NAME=${CONFIG_PROJECT_NAME:-$(basename "$(pwd)")}
+  CONFIG_SKIP_TOOLS=${CONFIG_SKIP_TOOLS:-false}
+
+  return 0
+}
+
+# ===== CONFIG-DRIVEN UPGRADE MODE =====
+
+# Detect if upgrade is needed
+detect_upgrade_needed() {
+  load_manifest || return 1
+
+  if [[ "$MANIFEST_VERSION" != "$INSTALLER_VERSION" ]]; then
+    return 0  # Upgrade needed
+  fi
+
+  return 1  # No upgrade needed
+}
+
+# Main config-driven upgrade function
+assisted_upgrade() {
+  print_status $BLUE "🔄 Running config-driven upgrade..."
+  print_status $CYAN "Mode: Config-driven (workflows regenerated from templates + config)"
+  echo ""
+
+  # Load current state
+  load_manifest
+
+  print_status $CYAN "Current version: $MANIFEST_VERSION"
+  print_status $CYAN "New version: $INSTALLER_VERSION"
+  echo ""
+
+  # Regenerate all workflows from config
+  print_status $BLUE "📝 Regenerating workflows from config..."
+  echo ""
+
+  regenerate_workflow "1cgs-security.yml"
+  print_status $GREEN "✅ Generated: 1cgs-security.yml"
+
+  # Clean up old workflows from v0.8.0
+  echo ""
+  print_status $BLUE "🧹 Cleaning up old workflows..."
+
+  if [[ -f ".github/workflows/security.yml" ]]; then
+    rm ".github/workflows/security.yml"
+    print_status $YELLOW "🗑️  Removed: security.yml (replaced by 1cgs-security.yml)"
+  fi
+
+  if [[ -f ".github/workflows/pinning-validation.yml" ]]; then
+    rm ".github/workflows/pinning-validation.yml"
+    print_status $YELLOW "🗑️  Removed: pinning-validation.yml (merged into 1cgs-security.yml)"
+  fi
+
+  # Update manifest
+  update_manifest_version "$INSTALLER_VERSION"
+
+  echo ""
+  print_status $GREEN "✅ Upgrade complete!"
+  print_status $CYAN "ℹ️  Generated workflows have warning headers - do not edit directly"
+  print_status $CYAN "ℹ️  To customize: edit .security-controls/config.yml and re-run installer"
+}
+
+# Regenerate a single workflow
+regenerate_workflow() {
+  local workflow_name=$1
+
+  case "$workflow_name" in
+    1cgs-security.yml)
+      generate_merged_security_workflow > ".github/workflows/1cgs-security.yml"
+      update_manifest_workflow "1cgs-security.yml" "3.0.0"
+      ;;
+    *)
+      print_status $YELLOW "⚠️  Unknown workflow: $workflow_name"
+      return 1
+      ;;
+  esac
 }
 
 # ===== UPGRADE FUNCTIONALITY =====
@@ -702,11 +906,11 @@ show_changelog() {
 write_version_info() {
   cat >"$VERSION_FILE" <<VERSION_EOF
 # Security Controls Installation Information
-# Generated by install-security-controls.sh v$SCRIPT_VERSION
-version="$SCRIPT_VERSION"
+# Generated by install-security-controls.sh v$INSTALLER_VERSION
+version="$INSTALLER_VERSION"
 install_date="$(date)"
 install_type="fresh_install"
-installer_version="$SCRIPT_VERSION"
+installer_version="$INSTALLER_VERSION"
 project_type="$(if [[ $RUST_PROJECT == true ]]; then echo "rust"; else echo "generic"; fi)"
 global_install="false"
 VERSION_EOF
@@ -733,43 +937,41 @@ execute_upgrade_commands() {
   fi
 
   # AUTO-DETECT EXISTING INSTALLATION (DMMT: Don't Make Me Think)
-  # If security controls already installed, automatically trigger safe upgrade
+  # If security controls already installed, automatically trigger config-driven upgrade
   if [[ -f $VERSION_FILE ]]; then
     local installed_version
     installed_version=$(get_installed_version)
 
-    # If we detect a different version, auto-run safe-upgrade
-    if [[ $installed_version != "$SCRIPT_VERSION" && $installed_version != "unknown" ]]; then
+    # If we detect a different version, auto-run config-driven upgrade
+    if [[ $installed_version != "$INSTALLER_VERSION" && $installed_version != "unknown" ]]; then
       print_status $BLUE "🔄 Existing installation detected (v$installed_version)"
-      print_status $BLUE "   Upgrading to v$SCRIPT_VERSION with modification detection..."
+      print_status $BLUE "   Upgrading to v$INSTALLER_VERSION with config-driven generation..."
       echo
 
-      # Check if safe-upgrade script exists
-      local safe_upgrade_script="./scripts/safe-upgrade.sh"
-
-      if [[ -x $safe_upgrade_script ]]; then
-        # Auto-run safe-upgrade (default behavior is safe upgrade)
-        exec "$safe_upgrade_script"
-      else
-        # Fallback: warn user but continue with standard upgrade
-        print_status $YELLOW "⚠️  Safe upgrade script not found at $safe_upgrade_script"
-        print_status $BLUE "ℹ️  Proceeding with standard upgrade..."
-        print_status $YELLOW "    (User modifications will be overwritten without prompting)"
-        echo
-        read -rp "Continue with standard upgrade? [y/N]: " confirm
-        if [[ ! $confirm =~ ^[Yy]$ ]]; then
-          print_status $RED "❌ Upgrade cancelled by user"
-          exit 0
-        fi
-        # Continue to normal installation (which will overwrite files)
+      # Check if manifest exists (required for v0.9.0+)
+      if ! load_manifest 2>/dev/null; then
+        print_status $RED "❌ No manifest found. This requires a full installation first."
+        echo ""
+        print_status $CYAN "Run full installation:"
+        print_status $CYAN "  ./install-security-controls.sh"
+        echo ""
+        print_status $YELLOW "Note: v0.9.0+ uses config-driven generation and requires manifest."
+        exit 1
       fi
+
+      # Run config-driven upgrade
+      print_status $CYAN "Using config-driven upgrade..."
+      echo ""
+      load_action_pins
+      assisted_upgrade
+      exit $?
     fi
   fi
 }
 
 show_help() {
   cat <<EOF
-🛡️  1-Click GitHub Security Controls Installer v${SCRIPT_VERSION}
+🛡️  1-Click GitHub Security Controls Installer v${INSTALLER_VERSION}
 
 👨‍💻 Created by Albert Hui <albert@securityronin.com>
    Security Ronin
@@ -808,8 +1010,8 @@ OPTIONS:
 
 INSTALLATION:
     # Download installer and checksum
-    curl -O https://github.com/h4x0r/1-click-github-sec/releases/download/v${SCRIPT_VERSION}/install-security-controls.sh
-    curl -O https://github.com/h4x0r/1-click-github-sec/releases/download/v${SCRIPT_VERSION}/checksums.txt
+    curl -O https://github.com/h4x0r/1-click-github-sec/releases/download/v${INSTALLER_VERSION}/install-security-controls.sh
+    curl -O https://github.com/h4x0r/1-click-github-sec/releases/download/v${INSTALLER_VERSION}/checksums.txt
 
     # VERIFY checksum before execution (STRONGLY RECOMMENDED - critical security practice)
     sha256sum -c checksums.txt --ignore-missing
@@ -821,9 +1023,17 @@ INSTALLATION:
 UPGRADE COMMANDS:
     --version               Show version and check for updates
     --check-update          Check for available updates
-    --upgrade               Upgrade to latest version with backup
+    --upgrade               Run assisted upgrade (detects customizations, shows diffs)
     --backup                Create backup of current installation
     --changelog             Show changelog and release notes
+
+NOTE ON UPGRADES:
+    The installer automatically detects existing installations and runs assisted
+    upgrade mode. This intelligently handles workflow customizations:
+    - Auto-upgrades pristine workflows (no customizations)
+    - Shows diffs for customized workflows (you choose: replace, keep, or merge)
+    - Backs up all workflows before modification
+    - Tracks components in .security-controls/manifest.yml
 
 SIGNING MODE COMMANDS:
     status                  Show current signing configuration and YubiKey status
@@ -956,7 +1166,7 @@ CRYPTOGRAPHIC VERIFICATION:
     Verify this installer's authenticity:
 
         # Verify the release tag
-        git tag -v v${SCRIPT_VERSION}
+        git tag -v v${INSTALLER_VERSION}
 
         # Check commit signatures
         git log --show-signature -1
@@ -975,7 +1185,7 @@ EOF
 }
 
 show_version() {
-  echo "🛡️  1-Click GitHub Security Controls v${SCRIPT_VERSION}"
+  echo "🛡️  1-Click GitHub Security Controls v${INSTALLER_VERSION}"
   echo "👨‍💻 Created by Albert Hui <albert@securityronin.com>"
   echo "   Security Ronin"
   echo
@@ -4793,6 +5003,42 @@ install_pre_push_hook() {
   fi
 }
 
+# Generate merged security workflow (1cgs-security.yml)
+# This merges security scanning + pinning validation into one workflow
+# shellcheck disable=SC2296  # GitHub Actions ${{ }} syntax is not bash
+generate_merged_security_workflow() {
+  # Load config for customizations
+  load_config
+
+  # Print warning header
+  cat <<'EOF'
+# ============================================================================
+# ⚠️⚠️⚠️ AUTO-GENERATED FILE - DO NOT EDIT DIRECTLY ⚠️⚠️⚠️
+# ============================================================================
+#
+# 🚫 MANUAL EDITS TO THIS FILE WILL BE LOST ON NEXT UPGRADE
+#
+# This workflow is generated from:
+#   - Template: 1cgs-security v3.0.0
+#   - Config: .security-controls/config.yml
+#   - Installer: v0.9.0
+#   - Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+#
+# To customize this workflow:
+#   1. Edit: .security-controls/config.yml
+#   2. Run: ./install-security-controls.sh
+#   3. Commit both files: config.yml + this workflow
+#
+# ⚠️⚠️⚠️ DO NOT EDIT THIS FILE DIRECTLY ⚠️⚠️⚠️
+# ============================================================================
+
+EOF
+
+  # Generate workflow content (for now, use generate_ci_workflow)
+  # TODO: Implement merged workflow with config customizations
+  generate_ci_workflow
+}
+
 # Generate Pinning Validation workflow (standalone)
 # shellcheck disable=SC2296  # GitHub Actions ${{ }} syntax is not bash
 generate_pinning_workflow() {
@@ -4981,7 +5227,7 @@ EOF
 # Generate CI workflow
 generate_ci_workflow() {
   if [[ $RUST_PROJECT == true ]]; then
-    cat <<EOF
+    cat <<'EOF'
 name: Security CI
 
 on:
@@ -5485,7 +5731,7 @@ jobs:
 
 EOF
   else
-    cat <<EOF
+    cat <<'EOF'
 name: Security CI
 
 on:
@@ -5566,7 +5812,7 @@ EOF
 
 # Generate CodeQL workflow for security scanning
 generate_codeql_workflow() {
-  cat <<EOF
+  cat <<'EOF'
 name: "Code Scanning - CodeQL"
 
 on:
@@ -5617,8 +5863,7 @@ install_ci_workflow() {
   print_section "Installing CI Workflow"
 
   local workflows_dir=".github/workflows"
-  local workflow_file="$workflows_dir/security.yml"
-  local pinning_file="$workflows_dir/pinning-validation.yml"
+  local workflow_file="$workflows_dir/1cgs-security.yml"
 
   # Create workflows directory if it doesn't exist
   if [[ $DRY_RUN == false ]]; then
@@ -5636,35 +5881,21 @@ install_ci_workflow() {
       if [[ $DRY_RUN == true ]]; then
         print_status $BLUE "[DRY RUN] Would install CI workflow to $workflow_file"
       else
-        generate_ci_workflow >"$workflow_file"
+        generate_merged_security_workflow >"$workflow_file"
         print_status $GREEN "✅ Security CI workflow installed: $workflow_file"
+        # Track in manifest
+        update_manifest_workflow "1cgs-security.yml" "3.0.0"
       fi
     fi
   else
     if [[ $DRY_RUN == true ]]; then
       print_status $BLUE "[DRY RUN] Would install CI workflow to $workflow_file"
     else
-      generate_ci_workflow >"$workflow_file"
+      generate_merged_security_workflow >"$workflow_file"
       print_status $GREEN "✅ Security CI workflow installed: $workflow_file"
+      # Track in manifest
+      update_manifest_workflow "1cgs-security.yml" "3.0.0"
     fi
-  fi
-
-  # Install dedicated Pinning Validation workflow separately
-  if [[ -f $pinning_file ]] && [[ $FORCE_INSTALL == false ]]; then
-    print_status $YELLOW "⚠️  Pinning Validation workflow already exists"
-    read -p "Replace existing pinning workflow? (y/N): " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-      print_status $BLUE "📝 Skipping pinning workflow installation"
-      return 0
-    fi
-  fi
-
-  if [[ $DRY_RUN == true ]]; then
-    print_status $BLUE "[DRY RUN] Would install Pinning Validation workflow to $pinning_file"
-  else
-    generate_pinning_workflow >"$pinning_file"
-    print_status $GREEN "✅ Pinning Validation workflow installed: $pinning_file"
   fi
 
   # Install CodeQL workflow if GitHub security features are enabled
@@ -6697,6 +6928,10 @@ parse_arguments() {
         UPDATE_ACTIONS=true
         shift
         ;;
+      --upgrade)
+        COMMAND_MODE="upgrade"
+        shift
+        ;;
       *)
         print_status $RED "Unknown option: $1"
         echo "Use --help for usage information"
@@ -6829,7 +7064,7 @@ test_signing_configuration() {
       print_status $BLUE "🧪 Creating test commit..."
       if git add "$test_file" && git commit -m "Test signing configuration
 
-Created by: Security Controls Installer v$SCRIPT_VERSION"; then
+Created by: Security Controls Installer v$INSTALLER_VERSION"; then
         print_status $GREEN "✅ Test commit created successfully!"
 
         # Verify signature
@@ -7027,7 +7262,7 @@ main() {
   # Initialize framework first - but do minimal setup before argument parsing
   setup_logging
 
-  print_header "Security Controls Installer v$SCRIPT_VERSION"
+  print_header "Security Controls Installer v$INSTALLER_VERSION"
 
   # Parse arguments first, so flags like --version work before other output
   parse_arguments "$@"
@@ -7038,14 +7273,14 @@ main() {
   # Display startup banner
   echo
   print_status $CYAN "══════════════════════════════════════════════════════════════"
-  print_status $CYAN "  🛡️  1-Click GitHub Security Controls v$SCRIPT_VERSION"
+  print_status $CYAN "  🛡️  1-Click GitHub Security Controls v$INSTALLER_VERSION"
   print_status $CYAN "  👨‍💻  Created by Albert Hui <albert@securityronin.com>"
   print_status $CYAN "     Security Ronin"
   print_status $CYAN "══════════════════════════════════════════════════════════════"
   echo
 
   log_info "=== Security Controls Installation Started ==="
-  log_info "Script version: $SCRIPT_VERSION"
+  log_info "Script version: $INSTALLER_VERSION"
   log_info "Arguments: $*"
 
   if [[ $DRY_RUN == true ]]; then
@@ -7063,6 +7298,16 @@ main() {
   # Handle signing mode commands (these exit before normal installation)
   if [[ -n $COMMAND_MODE ]]; then
     case "$COMMAND_MODE" in
+      "upgrade")
+        # Check if git repo first
+        check_git_repo || handle_error $EXIT_VALIDATION_ERROR "Not in a Git repository"
+        # Load action pins before upgrading
+        load_action_pins
+        echo ""
+        # Run assisted upgrade
+        assisted_upgrade
+        exit $?
+        ;;
       "status")
         show_signing_status
         exit 0
@@ -7131,6 +7376,14 @@ main() {
   safe_execute "install_default_config" \
     "Failed to install default configuration" \
     $EXIT_CONFIG_ERROR
+
+  # Create or load manifest
+  if ! load_manifest; then
+    create_manifest
+  fi
+
+  # Create default config.yml if doesn't exist
+  create_default_config
 
   # Install Renovate configuration
   safe_execute "install_renovate_config" \

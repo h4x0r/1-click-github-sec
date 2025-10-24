@@ -109,6 +109,7 @@ No configuration files to edit. No tools to manually install. No documentation t
 ### 🚀 New Users
 - **[Quick Start](https://h4x0r.github.io/1-click-github-sec/)** - Get running in 5 minutes
 - **[Installation Guide](https://h4x0r.github.io/1-click-github-sec/installation)** - Detailed setup instructions
+- **[Upgrading Guide](docs/UPGRADING.md)** - Upgrade to latest version (v0.9.0+ features config-driven workflow generation)
 
 ### 🔧 Power Users
 - **[Security Architecture](https://h4x0r.github.io/1-click-github-sec/architecture)** - How everything works

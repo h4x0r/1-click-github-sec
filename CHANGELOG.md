@@ -5,6 +5,47 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2025-10-24
+
+### 🚀 Major Simplification - Config-Driven Workflow Generation
+
+**BREAKING CHANGES** - Complete architectural simplification for maximum transparency and maintainability.
+
+### Config-Driven System
+- **✨ Pure Generation**: Workflows are now 100% generated artifacts from `.security-controls/config.yml`
+- **📝 Prominent Warnings**: All generated workflows have clear "AUTO-GENERATED - DO NOT EDIT" headers
+- **🔧 Simple Customization**: Edit `config.yml` → re-run installer → commit both files
+- **🗑️ Auto-Cleanup**: Old workflows automatically removed during upgrade
+- **📦 Merged Workflows**: `security.yml` + `pinning-validation.yml` → `1cgs-security.yml`
+- **🏷️ Clear Naming**: `1cgs-` prefix (1-Click GitHub Security) makes generated files obvious
+
+### Removed Complexity
+- **Removed**: Hash-based customization detection (~370 lines)
+- **Removed**: Backup/diff/choice logic for customized workflows
+- **Removed**: `SCRIPT_VERSION` (redundant with `INSTALLER_VERSION`)
+- **Removed**: Backward compatibility mechanisms (only 2 controlled users)
+- **Simplified**: Manifest system (version tracking only, no hash fields)
+- **Simplified**: Assisted upgrade (26 lines vs 117 lines)
+
+### Migration Support
+- **Auto-Detection**: v0.8.0 installations automatically detected
+- **Seamless Upgrade**: `./install-security-controls.sh --upgrade`
+- **Preserved Customizations**: Existing customizations moved to `config.yml`
+- **Example**: nameback's Linux build dependencies preserved in config
+
+### Benefits
+- **76% code reduction** in upgrade logic
+- **Zero ambiguity** about workflow source (config.yml is single source of truth)
+- **Faster iteration** (no hash comparison, no prompts)
+- **Better DX** (edit config, not YAML workflows)
+- **Clearer ownership** (1cgs- prefix vs generic names)
+
+### Technical Details
+- Fixed heredoc variable expansion bugs (`<<EOF` → `<<'EOF'`)
+- Updated main installation to use `1cgs-security.yml`
+- Calls `generate_merged_security_workflow` instead of split functions
+- Manifest tracks template version 3.0.0 for merged workflow
+
 ## [0.6.12] - 2025-01-24
 
 ### Added

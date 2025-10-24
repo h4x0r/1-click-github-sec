@@ -13,6 +13,11 @@
 
 title = "gitleaks config"
 
+# minVersion indicates the minimum Gitleaks version required to use this config.
+# If the running version is older, a warning will be logged and not all
+# config-enabled features are guaranteed to work.
+minVersion = "v8.25.0"
+
 # TODO: change to [[allowlists]]
 [allowlist]
 description = "global allow lists"
@@ -207,6 +212,20 @@ keywords = [
 regexes = [
     '''.+EXAMPLE$''',
 ]
+
+[[rules]]
+id = "aws-amazon-bedrock-api-key-long-lived"
+description = "Identified a pattern that may indicate long-lived Amazon Bedrock API keys, risking unauthorized Amazon Bedrock usage"
+regex = '''\b(ABSK[A-Za-z0-9+/]{109,269}={0,2})(?:[\x60'"\s;]|\\[nr]|$)'''
+entropy = 3
+keywords = ["absk"]
+
+[[rules]]
+id = "aws-amazon-bedrock-api-key-short-lived"
+description = "Identified a pattern that may indicate short-lived Amazon Bedrock API keys, risking unauthorized Amazon Bedrock usage"
+regex = '''bedrock-api-key-YmVkcm9jay5hbWF6b25hd3MuY29t'''
+entropy = 3
+keywords = ["bedrock-api-key-"]
 
 [[rules]]
 id = "azure-ad-client-secret"
