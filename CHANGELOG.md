@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.12] - 2025-01-24
+
+### Added
+- **Cargo.lock Validation**: Pre-push hook now validates that Cargo.lock is up to date for Rust projects
+  - Prevents pushes with out-of-date lockfiles that would fail CI
+  - Runs `cargo update --dry-run` to detect drift
+  - Provides clear error message: "Run 'cargo update' to update Cargo.lock"
+
+### Changed
+- Pre-push hook now includes Cargo.lock validation in Rust project checks
+- Ensures consistency between local development and CI environment
+
 ## [0.6.11] - 2025-10-22
 
 ### 🔐 SLSA Build Level 3 Provenance (Supply Chain Security)

@@ -17,7 +17,7 @@
 # Installs security controls for any repository
 # Industry-leading security architecture for multi-language projects
 #
-# Version: 0.6.11
+# Version: 0.6.12
 # Repository: https://github.com/h4x0r/1-click-github-sec
 
 set -euo pipefail
@@ -33,7 +33,7 @@ readonly CYAN='\033[0;36m'
 readonly NC='\033[0m' # No Color
 
 # Configuration
-readonly SCRIPT_VERSION="0.6.11"
+readonly SCRIPT_VERSION="0.6.12"
 # shellcheck disable=SC2034 # Placeholder for future use
 readonly REQUIRED_TOOLS_FILE="security-tools-requirements.txt"
 # shellcheck disable=SC2034 # Placeholder for future use
@@ -2656,6 +2656,16 @@ if [[ $SKIP_RUST -eq 0 ]]; then
   else
       print_status $RED "❌ Test failures detected"
       FAILED=1
+  fi
+
+  # Cargo.lock validation
+  print_status $YELLOW "🔒 Validating Cargo.lock..."
+  if cargo update --dry-run 2>&1 | grep -q "Locking.*to latest compatible version"; then
+      print_status $RED "❌ Cargo.lock is out of date"
+      echo "   Run 'cargo update' to update Cargo.lock"
+      FAILED=1
+  else
+      print_status $GREEN "✅ Cargo.lock is up to date"
   fi
 fi
 
