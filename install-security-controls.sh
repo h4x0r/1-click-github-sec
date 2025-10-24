@@ -5019,7 +5019,7 @@ generate_merged_security_workflow() {
 # 🚫 MANUAL EDITS TO THIS FILE WILL BE LOST ON NEXT UPGRADE
 #
 # This workflow is generated from:
-#   - Template: 1cgs-security v3.0.0
+#   - Template: 1cgs-security v3.0.0 (merged: security + pinning)
 #   - Config: .security-controls/config.yml
 #   - Installer: v0.9.0
 #   - Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)
@@ -5034,9 +5034,166 @@ generate_merged_security_workflow() {
 
 EOF
 
-  # Generate workflow content (for now, use generate_ci_workflow)
-  # TODO: Implement merged workflow with config customizations
+  # Generate main CI workflow content
   generate_ci_workflow
+
+  # Append pinning validation job (merged from pinning-validation.yml)
+  cat <<'EOF'
+
+  # =============================================================================
+  # SHA PINNING VALIDATION (merged from pinning-validation.yml)
+  # =============================================================================
+
+  pinning:
+    name: Validate GitHub Actions SHA Pinning
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Quick local pincheck (if present)
+        run: |
+          if [ -x ./.security-controls/bin/pinactlite ]; then
+            ./.security-controls/bin/pinactlite pincheck --dir .github/workflows
+          else
+            echo "Local pinactlite helper not present; skipping quick check."
+          fi
+
+      - name: Install and verify tools, then install pinact v3.4.2
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.local/bin"
+          export PATH="$HOME/.local/bin:$PATH"
+
+          # 1) Install cosign v2.6.0 and verify with SHA256
+          COSIGN_VERSION=v2.6.0
+          COSIGN_BASE="https://github.com/sigstore/cosign/releases/download/${COSIGN_VERSION}"
+          COSIGN_BIN="cosign-linux-amd64"
+          COSIGN_SHA="ea5c65f99425d6cfbb5c4b5de5dac035f14d09131c1a0ea7c7fc32eab39364f9"
+          curl -fsSLo /tmp/${COSIGN_BIN} "${COSIGN_BASE}/${COSIGN_BIN}"
+          echo "${COSIGN_SHA}  /tmp/${COSIGN_BIN}" | sha256sum -c -
+          install -m 0755 /tmp/${COSIGN_BIN} "$HOME/.local/bin/cosign"
+
+          # 2) Install slsa-verifier v2.7.1 and verify SHA256
+          SLSA_VERIFIER_VERSION=v2.7.1
+          SLSA_BIN="slsa-verifier-linux-amd64"
+          SLSA_BASE="https://github.com/slsa-framework/slsa-verifier/releases/download/${SLSA_VERIFIER_VERSION}"
+          SLSA_SHA="946dbec729094195e88ef78e1734324a27869f03e2c6bd2f61cbc06bd5350339"
+          curl -fsSLo /tmp/${SLSA_BIN} "${SLSA_BASE}/${SLSA_BIN}"
+          echo "${SLSA_SHA}  /tmp/${SLSA_BIN}" | sha256sum -c -
+          install -m 0755 /tmp/${SLSA_BIN} "$HOME/.local/bin/slsa-verifier"
+
+          # 3) Download pinact v3.4.2 artifacts and verify signature + provenance + checksum
+          VERSION=v3.4.2
+          BASE="https://github.com/suzuki-shunsuke/pinact/releases/download/${VERSION}"
+
+          # Fetch checksums and signature
+          curl -fsSLo /tmp/checksums.txt "${BASE}/pinact_${VERSION#v}_checksums.txt" || \
+          curl -fsSLo /tmp/checksums.txt "${BASE}/checksums.txt"
+
+          curl -fsSLo /tmp/checksums.txt.pem "${BASE}/pinact_${VERSION#v}_checksums.txt.pem" || \
+          curl -fsSLo /tmp/checksums.txt.pem "${BASE}/checksums.txt.pem"
+
+          curl -fsSLo /tmp/checksums.txt.sig "${BASE}/pinact_${VERSION#v}_checksums.txt.sig" || \
+          curl -fsSLo /tmp/checksums.txt.sig "${BASE}/checksums.txt.sig"
+
+          # Sigstore verification
+          cosign verify-blob \
+            --certificate /tmp/checksums.txt.pem \
+            --signature /tmp/checksums.txt.sig \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            --certificate-identity-regexp '^https://github.com/suzuki-shunsuke/(pinact|go-release-workflow)/.*' \
+            /tmp/checksums.txt
+
+          # OpenSSL verification as defense in depth
+          if ! openssl x509 -in /tmp/checksums.txt.pem -pubkey -noout > /tmp/pinact.pub 2>/dev/null; then
+            base64 -d /tmp/checksums.txt.pem > /tmp/checksums.txt.pem.dec
+            openssl x509 -in /tmp/checksums.txt.pem.dec -pubkey -noout > /tmp/pinact.pub
+          fi
+          if ! base64 -d /tmp/checksums.txt.sig > /tmp/checksums.txt.sig.bin 2>/dev/null; then
+            cp /tmp/checksums.txt.sig /tmp/checksums.txt.sig.bin
+          fi
+          openssl dgst -sha256 -verify /tmp/pinact.pub -signature /tmp/checksums.txt.sig.bin /tmp/checksums.txt
+
+          # Determine Linux amd64 tarball name
+          TARBALL=""
+          for name in "pinact_${VERSION#v}_linux_amd64.tar.gz" "pinact_linux_amd64.tar.gz" \
+                     "pinact_${VERSION#v}_Linux_x86_64.tar.gz" "pinact_Linux_x86_64.tar.gz"; do
+            if grep -q " ${name}$" /tmp/checksums.txt; then
+              TARBALL="$name"; break
+            fi
+          done
+          if [[ -z "$TARBALL" ]]; then
+            echo "Unable to determine tarball name" >&2
+            cat /tmp/checksums.txt >&2
+            exit 1
+          fi
+
+          # Download and verify tarball
+          curl -fsSLo "/tmp/${TARBALL}" "${BASE}/${TARBALL}"
+          awk -v tar="${TARBALL}" -v path="/tmp/${TARBALL}" '$2==tar { print $1, path }' /tmp/checksums.txt | sha256sum -c -
+
+          # Try SLSA provenance verification
+          PROV=""
+          for prov in multiple.intoto.jsonl provenance.intoto.jsonl attestation.intoto.jsonl; do
+            if curl -fsSLo "/tmp/${prov}" "${BASE}/${prov}"; then PROV="/tmp/${prov}"; break; fi
+          done
+
+          if [[ -n "${PROV}" ]]; then
+            slsa-verifier verify-artifact \
+              --provenance-path "${PROV}" \
+              --source-uri github.com/suzuki-shunsuke/pinact \
+              --source-tag "${VERSION}" \
+              "/tmp/${TARBALL}"
+          fi
+
+          # Extract and install
+          tar -xzf "/tmp/${TARBALL}"
+          install -m 0755 pinact "$HOME/.local/bin/pinact"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Verify pinact version
+        run: pinact --version || true
+
+      - name: Auto-fix unpinned actions with pinact
+        id: pinact_fix
+        run: |
+          pinact run
+
+          if git diff --quiet; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "✅ All actions are already pinned"
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "📌 Auto-pinned actions:"
+            git diff --stat
+          fi
+
+      - name: Commit auto-pinned changes
+        if: steps.pinact_fix.outputs.changed == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add .github/workflows/
+          git commit -m "chore: auto-pin GitHub Actions to SHA
+
+Auto-pinned by pinact v3.4.2 via 1cgs-security workflow
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)"
+
+      - name: Push auto-pinned changes
+        if: steps.pinact_fix.outputs.changed == 'true'
+        uses: ad-m/github-push-action@77c5b412c50b723d2a4fbc6d71fb5723bcd439aa # master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.ref }}
+
+      - name: Alert about auto-fixed pins
+        if: steps.pinact_fix.outputs.changed == 'true'
+        run: |
+          echo "::warning::Unpinned actions were detected and automatically fixed."
+          exit 0
+EOF
 }
 
 # Generate Pinning Validation workflow (standalone)
@@ -5227,7 +5384,7 @@ EOF
 # Generate CI workflow
 generate_ci_workflow() {
   if [[ $RUST_PROJECT == true ]]; then
-    cat <<'EOF'
+    cat <<EOF
 name: Security CI
 
 on:
@@ -5263,13 +5420,13 @@ jobs:
         fi
 
     - name: Install Rust toolchain
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       uses: dtolnay/rust-toolchain@$(get_action_sha "$DTOLNAY_RUST_TOOLCHAIN") # $(get_action_version "$DTOLNAY_RUST_TOOLCHAIN")
       with:
         toolchain: stable
 
     - name: Skip Security Audit (no Rust packages)
-      if: ${{ steps.rust.outputs.has != 'true' }}
+      if: \${{ steps.rust.outputs.has != 'true' }}
       run: echo "No Rust packages detected; skipping Security Audit job steps."
 
     - name: Cache dependencies
@@ -5282,34 +5439,34 @@ jobs:
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
           target/
-        key: ${{ runner.os }}-cargo-audit-${{ hashFiles('**/Cargo.lock') }}
+        key: \${{ runner.os }}-cargo-audit-\${{ hashFiles('**/Cargo.lock') }}
         restore-keys: |
-          ${{ runner.os }}-cargo-audit-
+          \${{ runner.os }}-cargo-audit-
 
     - name: Install cargo-audit and cargo-auditable
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       run: |
         cargo install --locked cargo-audit
         cargo install --locked cargo-auditable
 
     - name: Build with auditable metadata
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       run: cargo auditable build --release
 
     - name: Run cargo audit
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       run: cargo audit
 
     - name: Run cargo audit for dependencies
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       run: cargo audit --db advisory-db --json | tee audit-report.json
 
     - name: Run cargo audit on binary
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       run: cargo audit bin target/release/*
 
     - name: Upload audit report
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       uses: actions/upload-artifact@$(get_action_sha "$ACTIONS_UPLOAD_ARTIFACT_V4") # $(get_action_version "$ACTIONS_UPLOAD_ARTIFACT_V4")
       with:
         name: security-audit-report
@@ -5326,7 +5483,7 @@ jobs:
     - name: Run Gitleaks
       uses: gitleaks/gitleaks-action@$(get_action_sha "$GITLEAKS_ACTION_V2") # $(get_action_version "$GITLEAKS_ACTION_V2")
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: \${{ secrets.GITHUB_TOKEN }}
 
   vulnerability-scanning:
     name: Vulnerability Scanning
@@ -5375,24 +5532,24 @@ jobs:
         fi
 
     - name: Initialize CodeQL
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       uses: github/codeql-action/init@$(get_action_sha "$GITHUB_CODEQL_INIT_V3") # $(get_action_version "$GITHUB_CODEQL_INIT_V3")
       with:
         languages: rust
         queries: +security-and-quality
 
     - name: Install Rust toolchain
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       uses: dtolnay/rust-toolchain@$(get_action_sha "$DTOLNAY_RUST_TOOLCHAIN") # $(get_action_version "$DTOLNAY_RUST_TOOLCHAIN")
       with:
         toolchain: stable
 
     - name: Build project
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       run: cargo build --release
 
     - name: Perform CodeQL Analysis
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       uses: github/codeql-action/analyze@$(get_action_sha "$GITHUB_CODEQL_ANALYZE_V3") # $(get_action_version "$GITHUB_CODEQL_ANALYZE_V3")
 
   supply-chain:
@@ -5418,13 +5575,13 @@ jobs:
         fi
 
     - name: Install Rust toolchain
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       uses: dtolnay/rust-toolchain@$(get_action_sha "$DTOLNAY_RUST_TOOLCHAIN") # $(get_action_version "$DTOLNAY_RUST_TOOLCHAIN")
       with:
         toolchain: stable
 
     - name: Generate SBOM
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       run: |
         cargo install --locked cargo-auditable
         cargo auditable build --release
@@ -5432,11 +5589,11 @@ jobs:
         cargo cyclonedx --format json --output-file sbom.json
 
     - name: Skip Supply Chain (no Rust packages)
-      if: ${{ steps.rust.outputs.has != 'true' }}
+      if: \${{ steps.rust.outputs.has != 'true' }}
       run: echo "No Rust packages detected; skipping Supply Chain job steps."
 
     - name: Upload SBOM
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       uses: actions/upload-artifact@$(get_action_sha "$ACTIONS_UPLOAD_ARTIFACT_V4") # $(get_action_version "$ACTIONS_UPLOAD_ARTIFACT_V4")
       with:
         name: software-bill-of-materials
@@ -5466,23 +5623,23 @@ jobs:
         fi
 
     - name: Install Rust toolchain
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       uses: dtolnay/rust-toolchain@$(get_action_sha "$DTOLNAY_RUST_TOOLCHAIN") # $(get_action_version "$DTOLNAY_RUST_TOOLCHAIN")
       with:
         toolchain: stable
 
     - name: Install cargo-license
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       run: cargo install --locked cargo-license
 
     - name: Generate license report
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       run: |
         cargo license --json > licenses.json
         cargo license --tsv > licenses.tsv
 
     - name: Check for copyleft licenses
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       run: |
         COPYLEFT=$(cargo license --json | jq -r '.[] | select(.license | test("GPL-2.0|GPL-3.0|AGPL|LGPL"; "i")) | "\(.name): \(.license)"' || true)
         if [ -n "$COPYLEFT" ]; then
@@ -5493,7 +5650,7 @@ jobs:
         fi
 
     - name: Skip License Compliance (no Rust packages)
-      if: ${{ steps.rust.outputs.has != 'true' }}
+      if: \${{ steps.rust.outputs.has != 'true' }}
       run: echo "No Rust packages detected; skipping License Compliance job steps."
 
     - name: Upload license report
@@ -5527,23 +5684,23 @@ jobs:
         fi
 
     - name: Install Rust toolchain
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       uses: dtolnay/rust-toolchain@$(get_action_sha "$DTOLNAY_RUST_TOOLCHAIN") # $(get_action_version "$DTOLNAY_RUST_TOOLCHAIN")
       with:
         toolchain: stable
 
     - name: Build release binary
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       run: cargo build --release
 
     - name: Install binary analysis tools
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       run: |
         cargo install --locked cargo-binutils
         rustup component add llvm-tools-preview
 
     - name: Analyze binary for embedded secrets
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       run: |
         echo "🔍 Scanning binary for embedded secrets..."
         for binary in target/release/*; do
@@ -5560,7 +5717,7 @@ jobs:
         done
 
     - name: Check for debug symbols
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       run: |
         echo "🔍 Checking for debug symbols..."
         for binary in target/release/*; do
@@ -5574,7 +5731,7 @@ jobs:
         done
 
     - name: Upload binary analysis results
-      if: ${{ steps.rust.outputs.has == 'true' && hashFiles('binary-secrets.txt') != '' }}
+      if: \${{ steps.rust.outputs.has == 'true' && hashFiles('binary-secrets.txt') != '' }}
       uses: actions/upload-artifact@$(get_action_sha "$ACTIONS_UPLOAD_ARTIFACT_V4") # $(get_action_version "$ACTIONS_UPLOAD_ARTIFACT_V4")
       with:
         name: binary-analysis-results
@@ -5652,13 +5809,13 @@ jobs:
         fi
 
     - name: Install Rust toolchain
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       uses: dtolnay/rust-toolchain@$(get_action_sha "$DTOLNAY_RUST_TOOLCHAIN") # $(get_action_version "$DTOLNAY_RUST_TOOLCHAIN")
       with:
         toolchain: stable
 
     - name: Validate Cargo.lock
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       run: |
         echo "🔍 Validating Cargo.lock..."
         if [[ ! -f "Cargo.lock" ]]; then
@@ -5675,7 +5832,7 @@ jobs:
         echo "✅ Cargo.lock is valid and up-to-date"
 
     - name: Check for feature flag security
-      if: ${{ steps.rust.outputs.has == 'true' }}
+      if: \${{ steps.rust.outputs.has == 'true' }}
       run: |
         echo "🔍 Checking feature flag configuration..."
         
@@ -5695,7 +5852,7 @@ jobs:
           fi
 
     - name: Skip Enhanced Security (no Rust packages)
-      if: ${{ steps.rust.outputs.has != 'true' }}
+      if: \${{ steps.rust.outputs.has != 'true' }}
       run: echo "No Rust packages detected; skipping Enhanced Security job steps."
 
   gitsign-verification:
@@ -5731,7 +5888,7 @@ jobs:
 
 EOF
   else
-    cat <<'EOF'
+    cat <<EOF
 name: Security CI
 
 on:
@@ -5752,7 +5909,7 @@ jobs:
     - name: Run Gitleaks
       uses: gitleaks/gitleaks-action@$(get_action_sha "$GITLEAKS_ACTION_V2") # $(get_action_version "$GITLEAKS_ACTION_V2")
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: \${{ secrets.GITHUB_TOKEN }}
 
 
   vulnerability-scanning:
@@ -5848,13 +6005,13 @@ jobs:
     - name: Initialize CodeQL
       uses: github/codeql-action/init@$(get_action_sha "$GITHUB_CODEQL_INIT_V3") # $(get_action_version "$GITHUB_CODEQL_INIT_V3")
       with:
-        languages: ${{ matrix.language }}
-        build-mode: ${{ matrix.build-mode }}
+        languages: \${{ matrix.language }}
+        build-mode: \${{ matrix.build-mode }}
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@$(get_action_sha "$GITHUB_CODEQL_ANALYZE_V3") # $(get_action_version "$GITHUB_CODEQL_ANALYZE_V3")
       with:
-        category: "/language:${{matrix.language}}"
+        category: "/language:\${{matrix.language}}"
 EOF
 }
 

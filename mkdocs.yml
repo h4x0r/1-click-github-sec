@@ -41,6 +41,7 @@ nav:
   - 🚀 Get Started:
     - Installation Guide: installation.md
     - Uninstall Guide: uninstall.md
+    - Upgrading Guide: UPGRADING.md
   - 🔧 Power User Guides:
     - Security Architecture: architecture.md
     - GitHub Enterprise vs Free Tier: github-enterprise-comparison.md

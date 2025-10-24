@@ -7,3 +7,6 @@
 
 # Ignore autopin backup files (from pinactlite)
 *.bak.pin
+
+# Ignore installer logs
+.security-controls/logs/

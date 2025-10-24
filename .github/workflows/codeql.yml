@@ -1,0 +1,42 @@
+name: "Code Scanning - CodeQL"
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  schedule:
+    - cron: '17 18 * * 1'  # Weekly on Mondays
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  analyze:
+    name: Analyze Code
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - language: javascript-typescript
+          build-mode: none # CodeQL supports 'none', 'autobuild', and 'manual'
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@$(get_action_sha "$GITHUB_CODEQL_INIT_V3") # $(get_action_version "$GITHUB_CODEQL_INIT_V3")
+      with:
+        languages: ${{ matrix.language }}
+        build-mode: ${{ matrix.build-mode }}
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@$(get_action_sha "$GITHUB_CODEQL_ANALYZE_V3") # $(get_action_version "$GITHUB_CODEQL_ANALYZE_V3")
+      with:
+        category: "/language:${{matrix.language}}"

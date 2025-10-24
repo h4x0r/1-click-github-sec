@@ -335,9 +335,17 @@ repos:
 
 ### Layer 3: CI/CD Workflows (GitHub Actions)
 
-Four specialized workflows for continuous validation:
+Six specialized workflows for continuous validation:
 
-#### 1. `quality-assurance.yml`
+#### 1. `1cgs-security.yml`
+- **Purpose**: Auto-generated security workflow from `.security-controls/config.yml`
+- **Generation**: Created by installer from config-driven templates (v0.9.0+)
+- **Tools**: Language-specific security scanning (gitleaks, cargo-deny, CodeQL, etc.)
+- **Jobs**: Dynamically generated based on project configuration
+- **Warning**: AUTO-GENERATED - DO NOT EDIT (modify config.yml and re-run installer)
+- **Architecture**: Replaces legacy security.yml + pinning-validation.yml with unified config-driven approach
+
+#### 2. `quality-assurance.yml`
 - **Purpose**: Comprehensive quality and functional validation with dogfooding plus compliance
 - **Tools**: pinactlite, documentation validation scripts, functional synchronization
 - **Jobs**:
@@ -361,14 +369,22 @@ Four specialized workflows for continuous validation:
 - **Security**: SARIF uploads to GitHub Security tab, comprehensive threat coverage, ALL BLOCKING
 - **Architecture**: Parallel execution with zero-compromise security posture
 
-#### 3. `docs.yml`
+#### 3. `update-action-pins.yml`
+- **Purpose**: Automated GitHub Actions SHA pinning updates
+- **Schedule**: Runs weekly to fetch latest action SHAs
+- **Tools**: GitHub API, automated SHA resolution
+- **Output**: Creates PRs with updated action pins for security
+- **Security**: Ensures workflows use verified, pinned action versions
+- **Integration**: Works with pinactlite validation to maintain supply chain security
+
+#### 4. `docs.yml`
 - **Purpose**: Documentation site generation and deployment
 - **Tools**: MkDocs with Material theme, lychee link validation
 - **Output**: GitHub Pages site deployment
 - **Triggers**: Push to main, PR validation
 - **Validation**: Cross-reference consistency, link checking
 
-#### 4. `release.yml`
+#### 5. `release.yml`
 - **Purpose**: Automated release process with security validation
 - **Dependencies**: Waits for Quality Assurance + Security Scanning workflows
 - **Checks**: Version consistency, changelog updates, artifact generation
