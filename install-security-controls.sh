@@ -883,7 +883,16 @@ handle_customized_workflow() {
 
   # Generate new version to temp
   local temp_workflow="/tmp/new-${workflow}"
-  regenerate_workflow_to_temp "$workflow" "$temp_workflow"
+  if ! regenerate_workflow_to_temp "$workflow" "$temp_workflow"; then
+    print_status $RED "❌ Failed to generate new template"
+    return 1
+  fi
+
+  # Verify temp file was created
+  if [[ ! -f "$temp_workflow" ]]; then
+    print_status $RED "❌ Failed to create temp workflow file"
+    return 1
+  fi
 
   # Show diff
   print_status $CYAN "Changes between your version and new template:"
