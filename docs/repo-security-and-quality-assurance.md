@@ -335,17 +335,11 @@ repos:
 
 ### Layer 3: CI/CD Workflows (GitHub Actions)
 
-Six specialized workflows for continuous validation:
+Five specialized repository workflows for continuous validation:
 
-#### 1. `1cgs-security.yml`
-- **Purpose**: Auto-generated security workflow from `.security-controls/config.yml`
-- **Generation**: Created by installer from config-driven templates (v0.9.0+)
-- **Tools**: Language-specific security scanning (gitleaks, cargo-deny, CodeQL, etc.)
-- **Jobs**: Dynamically generated based on project configuration
-- **Warning**: AUTO-GENERATED - DO NOT EDIT (modify config.yml and re-run installer)
-- **Architecture**: Replaces legacy security.yml + pinning-validation.yml with unified config-driven approach
+**Note**: This repository does NOT use the installer-generated `1cgs-security.yml` workflow. Instead, it uses enhanced custom workflows as part of the "dogfooding plus" philosophy - we use more security controls than we provide to users.
 
-#### 2. `quality-assurance.yml`
+#### 1. `quality-assurance.yml`
 - **Purpose**: Comprehensive quality and functional validation with dogfooding plus compliance
 - **Tools**: pinactlite, documentation validation scripts, functional synchronization
 - **Jobs**:

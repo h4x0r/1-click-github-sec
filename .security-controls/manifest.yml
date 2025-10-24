@@ -1,7 +1,7 @@
 version: "1.0"
 installer_version: "0.7.0"
 install_date: "2025-10-20T00:00:00Z"
-last_upgrade: "2025-10-24T11:09:16Z"
+last_upgrade: "2025-10-24T11:23:51Z"
 
 mode: "assisted"
 
@@ -44,3 +44,7 @@ components:
     1cgs-security:
       template_version: "3.0.0"
       last_updated: "2025-10-24T11:09:16Z"
+
+    1cgs-security:
+      template_version: "3.0.0"
+      last_updated: "2025-10-24T11:23:51Z"
