@@ -3794,19 +3794,25 @@ fi
 # Shell formatting check (shfmt) - AUTO-FIX following DMMT principle
 if command -v shfmt >/dev/null 2>&1; then
     print_status $YELLOW "   🎨 Checking shell script formatting..."
-    if ! shfmt -d -i 2 -ci -s . >/dev/null 2>&1; then
-        print_status $YELLOW "   🛠 Auto-fixing shell script formatting..."
-        if shfmt -w -i 2 -ci -s . >/dev/null 2>&1; then
-            print_status $GREEN "   ✅ Shell scripts auto-formatted successfully"
-            # Re-stage the formatted files
-            git add -u >/dev/null 2>&1 || true
+    # Exclude installer script (contains YAML heredocs that shfmt can't parse)
+    SHELL_SCRIPTS=$(find . -name "*.sh" -type f ! -name "install-security-controls.sh" ! -path "./.git/*" 2>/dev/null || true)
+    if [[ -n "$SHELL_SCRIPTS" ]]; then
+        if ! echo "$SHELL_SCRIPTS" | xargs shfmt -d -i 2 -ci -s >/dev/null 2>&1; then
+            print_status $YELLOW "   🛠 Auto-fixing shell script formatting..."
+            if echo "$SHELL_SCRIPTS" | xargs shfmt -w -i 2 -ci -s >/dev/null 2>&1; then
+                print_status $GREEN "   ✅ Shell scripts auto-formatted successfully"
+                # Re-stage the formatted files
+                git add -u >/dev/null 2>&1 || true
+            else
+                print_status $RED "   ❌ Auto-fix failed - manual intervention required"
+                print_status $BLUE "   Try: shfmt -w -i 2 -ci -s <file>"
+                FAILED=1
+            fi
         else
-            print_status $RED "   ❌ Auto-fix failed - manual intervention required"
-            print_status $BLUE "   Try: shfmt -w -i 2 -ci -s ."
-            FAILED=1
+            print_status $GREEN "   ✅ Shell script formatting is correct"
         fi
     else
-        print_status $GREEN "   ✅ Shell script formatting is correct"
+        print_status $BLUE "   ⏭️  No shell scripts to format (excluding installer)"
     fi
 else
     print_status $YELLOW "   ⚠️  shfmt not found - install for shell script formatting validation"
