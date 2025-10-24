@@ -42,7 +42,7 @@ readonly CYAN='\033[0;36m'
 readonly NC='\033[0m' # No Color
 
 # Configuration
-readonly SCRIPT_VERSION="0.7.0"
+readonly SCRIPT_VERSION="0.8.0"
 # shellcheck disable=SC2034 # Placeholder for future use
 readonly REQUIRED_TOOLS_FILE="security-tools-requirements.txt"
 # shellcheck disable=SC2034 # Placeholder for future use
@@ -531,7 +531,7 @@ create_manifest() {
 
   cat > "$manifest_file" <<EOF
 version: "1.0"
-installer_version: "$INSTALLER_VERSION"
+installer_version: "$SCRIPT_VERSION"
 install_date: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 last_upgrade: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
@@ -746,7 +746,7 @@ EOF
 detect_upgrade_needed() {
   load_manifest || return 1
 
-  if [[ "$MANIFEST_VERSION" != "$INSTALLER_VERSION" ]]; then
+  if [[ "$MANIFEST_VERSION" != "$SCRIPT_VERSION" ]]; then
     return 0  # Upgrade needed
   fi
 
@@ -764,7 +764,7 @@ assisted_upgrade() {
   local mode=${MANIFEST_MODE:-assisted}
 
   print_status $CYAN "Current version: $MANIFEST_VERSION"
-  print_status $CYAN "New version: $INSTALLER_VERSION"
+  print_status $CYAN "New version: $SCRIPT_VERSION"
   echo ""
 
   # Categorize workflows
@@ -822,7 +822,7 @@ assisted_upgrade() {
   # Prompt for confirmation
   if [[ ${#pristine_workflows[@]} -eq 0 ]] && [[ ${#customized_workflows[@]} -eq 0 ]] && [[ ${#unknown_workflows[@]} -eq 0 ]]; then
     print_status $BLUE "ℹ️  No workflows to upgrade"
-    update_manifest_version "$INSTALLER_VERSION"
+    update_manifest_version "$SCRIPT_VERSION"
     return 0
   fi
 
@@ -867,7 +867,7 @@ assisted_upgrade() {
   fi
 
   # Update manifest
-  update_manifest_version "$INSTALLER_VERSION"
+  update_manifest_version "$SCRIPT_VERSION"
 
   print_status $GREEN "✅ Upgrade complete!"
 }
