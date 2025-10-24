@@ -1,9 +1,0 @@
-=== INSTALLATION SESSION START ===
-Timestamp: 2025年 9月28日 星期日 21時54分20秒 HKT
-Script: ./install-security-controls.sh 
-PWD: /Users/4n6h4x0r/src/1-click-github-sec
-User: 4n6h4x0r
-========================================
-[2025-09-28 21:54:20] [INFO] [print_status] ════════════════════════════════════════════════
-[2025-09-28 21:54:20] [INFO] [print_status]   Security Controls Installer v0.5.2
-[2025-09-28 21:54:20] [INFO] [print_status] ════════════════════════════════════════════════

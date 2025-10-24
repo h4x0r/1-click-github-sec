@@ -2670,6 +2670,28 @@ if [[ $SKIP_RUST -eq 0 ]]; then
 fi
 
 # Universal security checks
+# Version consistency check (auto-fix if inconsistent)
+print_status $YELLOW "🔢 Checking version consistency across all files..."
+if [[ -x scripts/version-sync.sh ]]; then
+    if scripts/version-sync.sh --check >/dev/null 2>&1; then
+        print_status $GREEN "✅ All version numbers are consistent"
+    else
+        print_status $YELLOW "🛠  Auto-fixing version inconsistencies..."
+        CURRENT_VERSION=$(cat VERSION 2>/dev/null || echo "unknown")
+        if scripts/version-sync.sh "$CURRENT_VERSION" >/dev/null 2>&1; then
+            # Re-stage the fixed files
+            git add -u >/dev/null 2>&1 || true
+            print_status $GREEN "✅ Version numbers synchronized to $CURRENT_VERSION"
+        else
+            print_status $RED "❌ Version synchronization failed"
+            echo "   Please run: ./scripts/version-sync.sh $CURRENT_VERSION"
+            FAILED=1
+        fi
+    fi
+else
+    print_status $YELLOW "⚠️  version-sync.sh script not found, skipping version check"
+fi
+
 print_status $YELLOW "🔍 Running secret detection (staged changes)..."
 if [[ -x .security-controls/bin/gitleakslite ]]; then
     if .security-controls/bin/gitleakslite protect --staged --no-banner --redact; then
