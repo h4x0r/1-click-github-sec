@@ -13,7 +13,6 @@ targets = [
 db-path = "~/.cargo/advisory-db"
 db-urls = ["https://github.com/rustsec/advisory-db"]
 unmaintained = "all"  # Check all dependencies for unmaintained status
-vulnerability = "deny"  # Fail on security vulnerabilities
 yanked = "warn"  # Warn on yanked crate versions
 
 [licenses]
