@@ -14,7 +14,7 @@ Supports **Rust, Node.js, Python, Go, and generic projects** with 35+ security c
 
 **📊 [Executive Briefing](docs/executive-briefing.md)** | **📚 [Documentation](https://h4x0r.github.io/1-click-github-sec/)** | **🏗️ [Architecture](docs/architecture.md)**
 
-[![Security](https://img.shields.io/badge/Installer%20Provides-35%2B%20Controls-green.svg)](https://h4x0r.github.io/1-click-github-sec/) [![GitHub Integration](https://img.shields.io/badge/Works%20with-GitHub-181717?logo=github&logoColor=white)](https://docs.github.com/en/rest) [![GitHub Security](https://img.shields.io/badge/GitHub%20Security-6%20Features-blue.svg)](https://h4x0r.github.io/1-click-github-sec/) [![Performance](https://img.shields.io/badge/Pre--Push-%3C60s-orange.svg)](https://h4x0r.github.io/1-click-github-sec/) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE) [![Version](https://img.shields.io/badge/Version-v0.6.13-purple.svg)](https://github.com/h4x0r/1-click-github-sec/releases)
+[![Security](https://img.shields.io/badge/Installer%20Provides-35%2B%20Controls-green.svg)](https://h4x0r.github.io/1-click-github-sec/) [![GitHub Integration](https://img.shields.io/badge/Works%20with-GitHub-181717?logo=github&logoColor=white)](https://docs.github.com/en/rest) [![GitHub Security](https://img.shields.io/badge/GitHub%20Security-6%20Features-blue.svg)](https://h4x0r.github.io/1-click-github-sec/) [![Performance](https://img.shields.io/badge/Pre--Push-%3C60s-orange.svg)](https://h4x0r.github.io/1-click-github-sec/) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE) [![Version](https://img.shields.io/badge/Version-v0.7.0-purple.svg)](https://github.com/h4x0r/1-click-github-sec/releases)
 
 ---
 
@@ -64,8 +64,8 @@ This isn't just convenient - it's security through design. Like the UK plug that
 
 ```bash
 # Download installer and SLSA provenance
-curl -O https://github.com/h4x0r/1-click-github-sec/releases/download/v0.6.13/install-security-controls.sh
-curl -O https://github.com/h4x0r/1-click-github-sec/releases/download/v0.6.13/multiple.intoto.jsonl
+curl -O https://github.com/h4x0r/1-click-github-sec/releases/download/v0.7.0/install-security-controls.sh
+curl -O https://github.com/h4x0r/1-click-github-sec/releases/download/v0.7.0/multiple.intoto.jsonl
 
 # VERIFY with SLSA provenance (cryptographic proof of authenticity)
 # Install slsa-verifier: https://github.com/slsa-framework/slsa-verifier#installation
