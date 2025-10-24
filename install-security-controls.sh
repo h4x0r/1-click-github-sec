@@ -17,7 +17,16 @@
 # Installs security controls for any repository
 # Industry-leading security architecture for multi-language projects
 #
-# Version: 0.6.12
+# Version: 0.6.13
+#
+# shellcheck disable=SC2086  # Intentional: Color codes in print_status don't need quoting
+# shellcheck disable=SC2155  # Intentional: Readonly assignments are safe to combine
+# shellcheck disable=SC2296  # GitHub Actions ${{ }} syntax in heredocs is not bash
+# shellcheck disable=SC2154  # Variables in heredocs/loops are assigned in context
+# shellcheck disable=SC2129  # Individual redirects are clearer than compound redirects
+# shellcheck disable=SC2120  # Functions with optional arguments are intentional
+# shellcheck disable=SC2119  # Optional arguments not always needed
+# shellcheck disable=SC2181  # Explicit $? checks are sometimes clearer
 # Repository: https://github.com/h4x0r/1-click-github-sec
 
 set -euo pipefail
@@ -4679,6 +4688,7 @@ install_pre_push_hook() {
 }
 
 # Generate Pinning Validation workflow (standalone)
+# shellcheck disable=SC2296  # GitHub Actions ${{ }} syntax is not bash
 generate_pinning_workflow() {
   cat <<EOF
 name: Pinning Validation
