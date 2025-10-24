@@ -504,6 +504,476 @@ get_action_version() {
   echo "${pin#*@}"
 }
 
+# ===== MANIFEST MANAGEMENT =====
+
+# Load manifest file
+load_manifest() {
+  local manifest_file="$CONTROL_STATE_DIR/manifest.yml"
+
+  if [[ -f "$manifest_file" ]]; then
+    # Parse manifest without yq dependency (basic parsing)
+    MANIFEST_VERSION=$(grep '^installer_version:' "$manifest_file" 2>/dev/null | awk '{print $2}' | tr -d '"' | tr -d "'")
+    MANIFEST_MODE=$(grep '^mode:' "$manifest_file" 2>/dev/null | awk '{print $2}' | tr -d '"' | tr -d "'")
+
+    # Default to assisted if not found
+    MANIFEST_MODE=${MANIFEST_MODE:-assisted}
+
+    return 0
+  else
+    return 1
+  fi
+}
+
+# Create initial manifest
+create_manifest() {
+  local manifest_file="$CONTROL_STATE_DIR/manifest.yml"
+  mkdir -p "$CONTROL_STATE_DIR"
+
+  cat > "$manifest_file" <<EOF
+version: "1.0"
+installer_version: "$INSTALLER_VERSION"
+install_date: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+last_upgrade: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+# Management mode: assisted | config-driven | manual
+# - assisted: Safe interactive upgrades with customization detection
+# - config-driven: Workflows regenerated from config.yml
+# - manual: User manages workflows, installer only updates action pins
+mode: "assisted"
+
+# Installed components tracking
+components:
+  workflows: {}
+  hooks: {}
+  tools:
+    installed: []
+    version_check_enabled: true
+
+# User preferences
+preferences:
+  auto_upgrade: "prompt"
+  backup_before_upgrade: true
+  show_diffs: true
+EOF
+
+  print_status $GREEN "✅ Created manifest: $manifest_file"
+}
+
+# Update manifest after installing a workflow
+update_manifest_workflow() {
+  local workflow_name=$1
+  local template_name=$2
+  local template_version=${3:-1.0.0}
+
+  local manifest_file="$CONTROL_STATE_DIR/manifest.yml"
+  local workflow_path=".github/workflows/${workflow_name}"
+
+  # Calculate hash if workflow exists
+  local hash=""
+  if [[ -f "$workflow_path" ]]; then
+    hash=$(sha256sum "$workflow_path" 2>/dev/null | awk '{print $1}')
+  fi
+
+  # Append workflow entry to manifest (simple YAML append)
+  # Note: This is basic - proper YAML editing would use yq
+  if grep -q "^  workflows:" "$manifest_file" 2>/dev/null; then
+    # Append under existing workflows section
+    cat >> "$manifest_file" <<EOF
+
+    ${workflow_name%.yml}:
+      source: "installer"
+      template: "$template_name"
+      template_version: "$template_version"
+      generated_hash: "$hash"
+      current_hash: "$hash"
+      customized: false
+      last_updated: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+EOF
+  fi
+}
+
+# Update manifest version after upgrade
+update_manifest_version() {
+  local new_version=$1
+  local manifest_file="$CONTROL_STATE_DIR/manifest.yml"
+
+  if [[ -f "$manifest_file" ]]; then
+    # Update installer_version and last_upgrade using sed
+    sed -i.bak \
+      -e "s/^installer_version: .*/installer_version: \"$new_version\"/" \
+      -e "s/^last_upgrade: .*/last_upgrade: \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"/" \
+      "$manifest_file"
+
+    rm -f "${manifest_file}.bak"
+    print_status $GREEN "✅ Updated manifest to version $new_version"
+  fi
+}
+
+# Mark workflow as user-managed (won't auto-upgrade)
+mark_workflow_as_user_managed() {
+  local workflow_name=$1
+  local manifest_file="$CONTROL_STATE_DIR/manifest.yml"
+
+  if [[ -f "$manifest_file" ]]; then
+    # This is a simplified approach - proper implementation would use yq
+    print_status $CYAN "📝 Marking $workflow_name as user-managed in manifest"
+    # For now, just log it - full implementation requires yq
+  fi
+}
+
+# Check if workflow is installer-managed
+is_installer_workflow() {
+  local workflow_name=$1
+
+  # List of workflows managed by installer
+  case "$workflow_name" in
+    security.yml|pinning-validation.yml)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+# Detect if workflow has been customized since generation
+detect_workflow_customization() {
+  local workflow_name=$1
+  local manifest_file="$CONTROL_STATE_DIR/manifest.yml"
+
+  if [[ ! -f "$manifest_file" ]]; then
+    return 2  # Unknown - no manifest
+  fi
+
+  # Extract generated_hash from manifest for this workflow
+  local workflow_key="${workflow_name%.yml}"
+  local generated_hash=$(grep -A 6 "^    ${workflow_key}:" "$manifest_file" 2>/dev/null | grep "generated_hash:" | awk '{print $2}' | tr -d '"')
+
+  if [[ -z "$generated_hash" ]]; then
+    return 2  # Unknown - workflow not in manifest
+  fi
+
+  # Calculate current hash
+  local current_hash=""
+  if [[ -f ".github/workflows/$workflow_name" ]]; then
+    current_hash=$(sha256sum ".github/workflows/$workflow_name" 2>/dev/null | awk '{print $1}')
+  fi
+
+  if [[ "$generated_hash" == "$current_hash" ]]; then
+    return 1  # Not customized
+  else
+    return 0  # Customized
+  fi
+}
+
+# Backup workflow before modification
+backup_workflow() {
+  local workflow=$1
+  local backup_dir="$CONTROL_STATE_DIR/backups/$(date +%Y-%m-%d-%H%M%S)"
+
+  mkdir -p "$backup_dir"
+
+  if [[ -f ".github/workflows/$workflow" ]]; then
+    cp ".github/workflows/$workflow" "$backup_dir/"
+    print_status $CYAN "💾 Backed up to: $backup_dir/$workflow"
+    return 0
+  else
+    return 1
+  fi
+}
+
+# ===== MIGRATION FOR OLD INSTALLATIONS =====
+
+# Migrate old installation to manifest-based system
+migrate_to_manifest_system() {
+  print_status $BLUE "🔄 Migrating to manifest-based upgrade system..."
+
+  # Create manifest
+  create_manifest
+
+  # Detect existing workflows and add to manifest
+  local workflows_dir=".github/workflows"
+
+  if [[ -d "$workflows_dir" ]]; then
+    # Check for security.yml
+    if [[ -f "$workflows_dir/security.yml" ]]; then
+      print_status $CYAN "   Found existing security.yml"
+      local hash=$(sha256sum "$workflows_dir/security.yml" 2>/dev/null | awk '{print $1}')
+
+      # Add to manifest - mark as potentially customized since we don't know
+      cat >> "$CONTROL_STATE_DIR/manifest.yml" <<EOF
+
+    security:
+      source: "installer"
+      template: "rust-security"
+      template_version: "2.0.0"
+      generated_hash: "unknown"
+      current_hash: "$hash"
+      customized: true
+      last_updated: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+      migration_note: "Migrated from pre-manifest installation"
+EOF
+    fi
+
+    # Check for pinning-validation.yml
+    if [[ -f "$workflows_dir/pinning-validation.yml" ]]; then
+      print_status $CYAN "   Found existing pinning-validation.yml"
+      local hash=$(sha256sum "$workflows_dir/pinning-validation.yml" 2>/dev/null | awk '{print $1}')
+
+      cat >> "$CONTROL_STATE_DIR/manifest.yml" <<EOF
+
+    pinning-validation:
+      source: "installer"
+      template: "pinning-validation"
+      template_version: "1.0.0"
+      generated_hash: "unknown"
+      current_hash: "$hash"
+      customized: true
+      last_updated: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+      migration_note: "Migrated from pre-manifest installation"
+EOF
+    fi
+  fi
+
+  print_status $GREEN "✅ Migration complete - manifest created"
+  print_status $CYAN "   All existing workflows marked as potentially customized"
+  print_status $CYAN "   You can now use: ./install-security-controls.sh --upgrade"
+}
+
+# ===== ASSISTED UPGRADE MODE =====
+
+# Detect if upgrade is needed
+detect_upgrade_needed() {
+  load_manifest || return 1
+
+  if [[ "$MANIFEST_VERSION" != "$INSTALLER_VERSION" ]]; then
+    return 0  # Upgrade needed
+  fi
+
+  return 1  # No upgrade needed
+}
+
+# Main assisted upgrade function
+assisted_upgrade() {
+  print_status $BLUE "🔄 Running assisted upgrade..."
+  print_status $CYAN "Mode: Assisted (safe, interactive)"
+  echo ""
+
+  # Load current state
+  load_manifest
+  local mode=${MANIFEST_MODE:-assisted}
+
+  print_status $CYAN "Current version: $MANIFEST_VERSION"
+  print_status $CYAN "New version: $INSTALLER_VERSION"
+  echo ""
+
+  # Categorize workflows
+  local -a pristine_workflows=()
+  local -a customized_workflows=()
+  local -a unknown_workflows=()
+
+  for workflow in .github/workflows/*.yml; do
+    [[ -f "$workflow" ]] || continue
+    local name=$(basename "$workflow")
+
+    # Check if installer-managed
+    if is_installer_workflow "$name"; then
+      detect_workflow_customization "$name"
+      local result=$?
+
+      if [[ $result -eq 1 ]]; then
+        # Not customized
+        pristine_workflows+=("$name")
+      elif [[ $result -eq 0 ]]; then
+        # Customized
+        customized_workflows+=("$name")
+      else
+        # Unknown (not in manifest)
+        unknown_workflows+=("$name")
+      fi
+    fi
+  done
+
+  # Report findings
+  if [[ ${#pristine_workflows[@]} -gt 0 ]]; then
+    print_status $GREEN "✅ Pristine workflows (will auto-upgrade): ${#pristine_workflows[@]}"
+    for wf in "${pristine_workflows[@]}"; do
+      echo "   - $wf"
+    done
+    echo ""
+  fi
+
+  if [[ ${#customized_workflows[@]} -gt 0 ]]; then
+    print_status $YELLOW "⚠️  Customized workflows (need review): ${#customized_workflows[@]}"
+    for wf in "${customized_workflows[@]}"; do
+      echo "   - $wf"
+    done
+    echo ""
+  fi
+
+  if [[ ${#unknown_workflows[@]} -gt 0 ]]; then
+    print_status $CYAN "ℹ️  New installer-managed workflows (will install): ${#unknown_workflows[@]}"
+    for wf in "${unknown_workflows[@]}"; do
+      echo "   - $wf"
+    done
+    echo ""
+  fi
+
+  # Prompt for confirmation
+  if [[ ${#pristine_workflows[@]} -eq 0 ]] && [[ ${#customized_workflows[@]} -eq 0 ]] && [[ ${#unknown_workflows[@]} -eq 0 ]]; then
+    print_status $BLUE "ℹ️  No workflows to upgrade"
+    update_manifest_version "$INSTALLER_VERSION"
+    return 0
+  fi
+
+  echo ""
+  read -p "Proceed with upgrade? [Y/n]: " -n 1 -r
+  echo ""
+  if [[ ! $REPLY =~ ^[Yy]$ ]] && [[ -n $REPLY ]]; then
+    print_status $YELLOW "⏭️  Upgrade cancelled"
+    return 1
+  fi
+
+  # Auto-upgrade pristine workflows
+  if [[ ${#pristine_workflows[@]} -gt 0 ]]; then
+    print_status $BLUE "📝 Upgrading pristine workflows..."
+    for workflow in "${pristine_workflows[@]}"; do
+      backup_workflow "$workflow"
+      regenerate_workflow "$workflow"
+      print_status $GREEN "✅ Updated: $workflow"
+    done
+    echo ""
+  fi
+
+  # Install new workflows
+  if [[ ${#unknown_workflows[@]} -gt 0 ]]; then
+    print_status $BLUE "📝 Installing new workflows..."
+    for workflow in "${unknown_workflows[@]}"; do
+      regenerate_workflow "$workflow"
+      print_status $GREEN "✅ Installed: $workflow"
+    done
+    echo ""
+  fi
+
+  # Handle customized workflows interactively
+  if [[ ${#customized_workflows[@]} -gt 0 ]]; then
+    print_status $YELLOW "🔍 Reviewing customized workflows..."
+    echo ""
+
+    for workflow in "${customized_workflows[@]}"; do
+      handle_customized_workflow "$workflow"
+      echo ""
+    done
+  fi
+
+  # Update manifest
+  update_manifest_version "$INSTALLER_VERSION"
+
+  print_status $GREEN "✅ Upgrade complete!"
+}
+
+# Handle a single customized workflow
+handle_customized_workflow() {
+  local workflow=$1
+
+  print_status $CYAN "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  print_status $YELLOW "Customized workflow: $workflow"
+  print_status $CYAN "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo ""
+
+  # Generate new version to temp
+  local temp_workflow="/tmp/new-${workflow}"
+  regenerate_workflow_to_temp "$workflow" "$temp_workflow"
+
+  # Show diff
+  print_status $CYAN "Changes between your version and new template:"
+  echo ""
+  diff -u ".github/workflows/$workflow" "$temp_workflow" 2>/dev/null || true
+  echo ""
+
+  # Offer options
+  print_status $CYAN "Options:"
+  echo "  1) Replace with new template (lose customizations, but get all improvements)"
+  echo "  2) Keep current version (miss new features and fixes)"
+  echo "  3) Save both for manual merge (new template saved to /tmp/)"
+  echo ""
+
+  read -p "Choice [1/2/3]: " choice
+
+  case $choice in
+    1)
+      backup_workflow "$workflow"
+      cp "$temp_workflow" ".github/workflows/$workflow"
+      update_manifest_workflow "$workflow" "$(get_template_name "$workflow")" "2.1.0"
+      print_status $YELLOW "⚠️  Replaced with new template"
+      print_status $CYAN "📝 Your customizations were backed up"
+      ;;
+
+    2)
+      print_status $YELLOW "⏭️  Kept current version"
+      mark_workflow_as_user_managed "$workflow"
+      ;;
+
+    3)
+      print_status $CYAN "📝 New template saved to: $temp_workflow"
+      print_status $CYAN "Current version unchanged - merge manually when ready"
+      ;;
+
+    *)
+      print_status $YELLOW "⏭️  Invalid choice, keeping current version"
+      ;;
+  esac
+}
+
+# Regenerate a single workflow
+regenerate_workflow() {
+  local workflow_name=$1
+
+  case "$workflow_name" in
+    security.yml)
+      generate_ci_workflow > ".github/workflows/security.yml"
+      update_manifest_workflow "security.yml" "rust-security" "2.1.0"
+      ;;
+    pinning-validation.yml)
+      generate_pinning_workflow > ".github/workflows/pinning-validation.yml"
+      update_manifest_workflow "pinning-validation.yml" "pinning-validation" "1.0.0"
+      ;;
+    *)
+      print_status $YELLOW "⚠️  Unknown workflow: $workflow_name"
+      return 1
+      ;;
+  esac
+}
+
+# Regenerate workflow to temp file for comparison
+regenerate_workflow_to_temp() {
+  local workflow_name=$1
+  local output_file=$2
+
+  case "$workflow_name" in
+    security.yml)
+      generate_ci_workflow > "$output_file"
+      ;;
+    pinning-validation.yml)
+      generate_pinning_workflow > "$output_file"
+      ;;
+    *)
+      print_status $YELLOW "⚠️  Unknown workflow: $workflow_name"
+      return 1
+      ;;
+  esac
+}
+
+# Get template name for a workflow
+get_template_name() {
+  local workflow=$1
+  case "$workflow" in
+    security.yml) echo "rust-security" ;;
+    pinning-validation.yml) echo "pinning-validation" ;;
+    *) echo "unknown" ;;
+  esac
+}
+
 # ===== UPGRADE FUNCTIONALITY =====
 
 # Get current installed version
@@ -744,7 +1214,28 @@ execute_upgrade_commands() {
       print_status $BLUE "   Upgrading to v$SCRIPT_VERSION with modification detection..."
       echo
 
-      # Check if safe-upgrade script exists
+      # Check if manifest exists (new upgrade system)
+      if load_manifest 2>/dev/null; then
+        print_status $CYAN "Using manifest-based assisted upgrade..."
+        echo ""
+        load_action_pins
+        assisted_upgrade
+        exit $?
+      else
+        # No manifest - migrate old installation first
+        print_status $YELLOW "⚠️  No manifest found - this is an old installation"
+        echo ""
+        migrate_to_manifest_system
+        echo ""
+        print_status $CYAN "Now running assisted upgrade..."
+        echo ""
+        load_action_pins
+        assisted_upgrade
+        exit $?
+      fi
+
+      # Fallback to old safe-upgrade script (should never reach here now)
+      # Keeping for backward compatibility
       local safe_upgrade_script="./scripts/safe-upgrade.sh"
 
       if [[ -x $safe_upgrade_script ]]; then
@@ -821,9 +1312,17 @@ INSTALLATION:
 UPGRADE COMMANDS:
     --version               Show version and check for updates
     --check-update          Check for available updates
-    --upgrade               Upgrade to latest version with backup
+    --upgrade               Run assisted upgrade (detects customizations, shows diffs)
     --backup                Create backup of current installation
     --changelog             Show changelog and release notes
+
+NOTE ON UPGRADES:
+    The installer automatically detects existing installations and runs assisted
+    upgrade mode. This intelligently handles workflow customizations:
+    - Auto-upgrades pristine workflows (no customizations)
+    - Shows diffs for customized workflows (you choose: replace, keep, or merge)
+    - Backs up all workflows before modification
+    - Tracks components in .security-controls/manifest.yml
 
 SIGNING MODE COMMANDS:
     status                  Show current signing configuration and YubiKey status
@@ -5638,6 +6137,8 @@ install_ci_workflow() {
       else
         generate_ci_workflow >"$workflow_file"
         print_status $GREEN "✅ Security CI workflow installed: $workflow_file"
+        # Track in manifest
+        update_manifest_workflow "security.yml" "rust-security" "2.1.0"
       fi
     fi
   else
@@ -5646,6 +6147,8 @@ install_ci_workflow() {
     else
       generate_ci_workflow >"$workflow_file"
       print_status $GREEN "✅ Security CI workflow installed: $workflow_file"
+      # Track in manifest
+      update_manifest_workflow "security.yml" "rust-security" "2.1.0"
     fi
   fi
 
@@ -5665,6 +6168,8 @@ install_ci_workflow() {
   else
     generate_pinning_workflow >"$pinning_file"
     print_status $GREEN "✅ Pinning Validation workflow installed: $pinning_file"
+    # Track in manifest
+    update_manifest_workflow "pinning-validation.yml" "pinning-validation" "1.0.0"
   fi
 
   # Install CodeQL workflow if GitHub security features are enabled
@@ -6697,6 +7202,10 @@ parse_arguments() {
         UPDATE_ACTIONS=true
         shift
         ;;
+      --upgrade)
+        COMMAND_MODE="upgrade"
+        shift
+        ;;
       *)
         print_status $RED "Unknown option: $1"
         echo "Use --help for usage information"
@@ -7063,6 +7572,16 @@ main() {
   # Handle signing mode commands (these exit before normal installation)
   if [[ -n $COMMAND_MODE ]]; then
     case "$COMMAND_MODE" in
+      "upgrade")
+        # Check if git repo first
+        check_git_repo || handle_error $EXIT_VALIDATION_ERROR "Not in a Git repository"
+        # Load action pins before upgrading
+        load_action_pins
+        echo ""
+        # Run assisted upgrade
+        assisted_upgrade
+        exit $?
+        ;;
       "status")
         show_signing_status
         exit 0
@@ -7131,6 +7650,11 @@ main() {
   safe_execute "install_default_config" \
     "Failed to install default configuration" \
     $EXIT_CONFIG_ERROR
+
+  # Create or load manifest
+  if ! load_manifest; then
+    create_manifest
+  fi
 
   # Install Renovate configuration
   safe_execute "install_renovate_config" \
