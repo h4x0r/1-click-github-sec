@@ -1,0 +1,21 @@
+=== INSTALLATION SESSION START ===
+Timestamp: 2025年10月24日 星期五 11時44分11秒 HKT
+Script: ./install-security-controls.sh 
+PWD: /Users/4n6h4x0r/src/1-click-github-sec
+User: 4n6h4x0r
+========================================
+[2025-10-24 11:44:11] [INFO] [print_status] ════════════════════════════════════════════════
+[2025-10-24 11:44:11] [INFO] [print_status]   Security Controls Installer v0.6.12
+[2025-10-24 11:44:11] [INFO] [print_status] ════════════════════════════════════════════════
+[2025-10-24 11:44:11] [INFO] [start_transaction] Transaction started: security-controls-install
+[2025-10-24 11:44:11] [INFO] [print_status] ══════════════════════════════════════════════════════════════
+[2025-10-24 11:44:11] [INFO] [print_status]   🛡️  1-Click GitHub Security Controls v0.6.12
+[2025-10-24 11:44:11] [INFO] [print_status]   👨‍💻  Created by Albert Hui <albert@securityronin.com>
+[2025-10-24 11:44:11] [INFO] [print_status]      Security Ronin
+[2025-10-24 11:44:11] [INFO] [print_status] ══════════════════════════════════════════════════════════════
+[2025-10-24 11:44:11] [INFO] [main] === Security Controls Installation Started ===
+[2025-10-24 11:44:11] [INFO] [main] Script version: 0.6.12
+[2025-10-24 11:44:11] [INFO] [main] Arguments: 
+[2025-10-24 11:44:11] [INFO] [print_status] 🔄 Existing installation detected (v0.6.10
+0.6.10)
+[2025-10-24 11:44:11] [INFO] [print_status]    Upgrading to v0.6.12 with modification detection...

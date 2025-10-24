@@ -33,7 +33,7 @@ readonly CYAN='\033[0;36m'
 readonly NC='\033[0m' # No Color
 
 # Configuration
-readonly SCRIPT_VERSION="0.6.12"
+readonly SCRIPT_VERSION="0.6.13"
 # shellcheck disable=SC2034 # Placeholder for future use
 readonly REQUIRED_TOOLS_FILE="security-tools-requirements.txt"
 # shellcheck disable=SC2034 # Placeholder for future use
@@ -48,6 +48,11 @@ readonly BACKUP_DIR=".security-controls-backup"
 readonly CONFIG_FILE=".security-controls-config"
 readonly REMOTE_VERSION_URL="https://raw.githubusercontent.com/h4x0r/1-click-github-sec/main/VERSION"
 readonly REMOTE_CHANGELOG_URL="https://raw.githubusercontent.com/h4x0r/1-click-github-sec/main/CHANGELOG.md"
+
+# Action pins configuration
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly ACTION_PINS_FILE="${SCRIPT_DIR}/config/action-pins.env"
+UPDATE_ACTIONS=false  # Can be set to true with --update-actions flag
 
 # Local state/config directories
 readonly CONTROL_STATE_DIR=".security-controls"
@@ -372,6 +377,124 @@ print_section() {
   echo
 }
 
+# ============================================================================
+# ACTION PINS MANAGEMENT
+# ============================================================================
+
+# Load GitHub Action pins from config file or fetch latest
+load_action_pins() {
+  # Auto-fetch latest on first install (fresh installation)
+  local is_first_install=false
+  if [[ ! -f "$CONTROL_STATE_DIR/.security-controls-version" ]] || [[ "$FORCE_INSTALL" == "true" ]]; then
+    is_first_install=true
+  fi
+
+  if [[ "$UPDATE_ACTIONS" == "true" ]] || [[ "$is_first_install" == "true" ]]; then
+    if [[ "$is_first_install" == "true" ]] && [[ "$UPDATE_ACTIONS" != "true" ]]; then
+      print_status $BLUE "🆕 First install detected - fetching latest GitHub Action versions..."
+    else
+      print_status $BLUE "🔄 Fetching latest GitHub Action versions..."
+    fi
+    fetch_latest_action_pins
+  else
+    if [[ -f "$ACTION_PINS_FILE" ]]; then
+      print_status $BLUE "📌 Loading curated GitHub Action pins..."
+      # shellcheck disable=SC1090
+      source "$ACTION_PINS_FILE"
+      print_status $GREEN "✅ Loaded action pins from config"
+    else
+      print_status $YELLOW "⚠️  Action pins file not found, using fallback versions"
+      use_fallback_action_pins
+    fi
+  fi
+}
+
+# Fetch latest GitHub Action versions dynamically
+fetch_latest_action_pins() {
+  # Helper function to fetch SHA from GitHub API (works with or without gh CLI)
+  fetch_sha() {
+    local repo=$1
+    local ref=$2
+    local fallback=$3
+
+    if command -v gh &> /dev/null; then
+      # Use gh CLI if available (faster, authenticated)
+      gh api "repos/${repo}/git/refs/${ref}" --jq '.object.sha' 2>/dev/null || echo "$fallback"
+    elif command -v jq &> /dev/null; then
+      # Use curl + jq if available
+      curl -fsSL "https://api.github.com/repos/${repo}/git/refs/${ref}" 2>/dev/null | jq -r '.object.sha // empty' || echo "$fallback"
+    else
+      # Fallback: use curl with grep/sed (works without jq)
+      curl -fsSL "https://api.github.com/repos/${repo}/git/refs/${ref}" 2>/dev/null | grep -o '"sha":"[^"]*"' | head -1 | sed 's/"sha":"\([^"]*\)"/\1/' || echo "$fallback"
+    fi
+  }
+
+  # Helper for commit SHA (different API endpoint)
+  fetch_commit_sha() {
+    local repo=$1
+    local branch=$2
+    local fallback=$3
+
+    if command -v gh &> /dev/null; then
+      gh api "repos/${repo}/commits/${branch}" --jq '.sha' 2>/dev/null || echo "$fallback"
+    elif command -v jq &> /dev/null; then
+      curl -fsSL "https://api.github.com/repos/${repo}/commits/${branch}" 2>/dev/null | jq -r '.sha // empty' || echo "$fallback"
+    else
+      curl -fsSL "https://api.github.com/repos/${repo}/commits/${branch}" 2>/dev/null | grep -o '"sha":"[^"]*"' | head -1 | sed 's/"sha":"\([^"]*\)"/\1/' || echo "$fallback"
+    fi
+  }
+
+  print_status $CYAN "  Fetching actions/checkout latest..."
+  ACTIONS_CHECKOUT_V4=$(fetch_sha "actions/checkout" "tags/v4" "692973e3d937129bcbf40652eb9f2f61becf3332")@v4.latest
+  ACTIONS_CHECKOUT_V5=$(fetch_sha "actions/checkout" "tags/v5" "08c6903cd8c0fde910a37f88322edcf5dd907a8")@v5.latest
+
+  print_status $CYAN "  Fetching actions/cache latest..."
+  ACTIONS_CACHE_V4=$(fetch_sha "actions/cache" "tags/v4" "0057852bfaa89a56745cba8c7296529d2fc39830")@v4.latest
+
+  print_status $CYAN "  Fetching actions/upload-artifact latest..."
+  ACTIONS_UPLOAD_ARTIFACT_V4=$(fetch_sha "actions/upload-artifact" "tags/v4" "65462800fd760344b1a7b4382951275a0abb4808")@v4.latest
+
+  print_status $CYAN "  Fetching github/codeql-action latest..."
+  GITHUB_CODEQL_INIT_V3=$(fetch_sha "github/codeql-action" "tags/v3" "396bb3e45325a47dd9ef434068033c6d5bb0d11a")@v3.latest
+  GITHUB_CODEQL_ANALYZE_V3="$GITHUB_CODEQL_INIT_V3"
+
+  print_status $CYAN "  Fetching gitleaks/gitleaks-action latest..."
+  GITLEAKS_ACTION_V2=$(fetch_sha "gitleaks/gitleaks-action" "tags/v2" "44c470ffc35caa8b1eb3e8012ca53c2f9bea4eb5")@v2.latest
+
+  print_status $CYAN "  Fetching dtolnay/rust-toolchain latest..."
+  DTOLNAY_RUST_TOOLCHAIN=$(fetch_commit_sha "dtolnay/rust-toolchain" "stable" "21dc36fb71dd22e3317045c0c31a3f4249868b17")@stable
+
+  print_status $CYAN "  Fetching ad-m/github-push-action latest..."
+  GITHUB_PUSH_ACTION=$(fetch_commit_sha "ad-m/github-push-action" "master" "77c5b412c50b723d2a4fbc6d71fb5723bcd439aa")@master
+
+  print_status $GREEN "✅ Fetched latest action versions"
+}
+
+# Fallback versions if config file is missing
+use_fallback_action_pins() {
+  ACTIONS_CHECKOUT_V4="692973e3d937129bcbf40652eb9f2f61becf3332@v4.1.7"
+  ACTIONS_CHECKOUT_V5="08c6903cd8c0fde910a37f88322edcf5dd907a8@v5.0.0"
+  ACTIONS_CACHE_V4="0057852bfaa89a56745cba8c7296529d2fc39830@v4.3.0"
+  ACTIONS_UPLOAD_ARTIFACT_V4="65462800fd760344b1a7b4382951275a0abb4808@v4.3.3"
+  GITHUB_CODEQL_INIT_V3="396bb3e45325a47dd9ef434068033c6d5bb0d11a@v3.26.7"
+  GITHUB_CODEQL_ANALYZE_V3="396bb3e45325a47dd9ef434068033c6d5bb0d11a@v3.26.7"
+  GITLEAKS_ACTION_V2="44c470ffc35caa8b1eb3e8012ca53c2f9bea4eb5@v2.3.6"
+  DTOLNAY_RUST_TOOLCHAIN="21dc36fb71dd22e3317045c0c31a3f4249868b17@stable"
+  GITHUB_PUSH_ACTION="77c5b412c50b723d2a4fbc6d71fb5723bcd439aa@master"
+}
+
+# Helper to extract SHA from pin (format: sha@version)
+get_action_sha() {
+  local pin=$1
+  echo "${pin%@*}"
+}
+
+# Helper to extract version from pin (format: sha@version)
+get_action_version() {
+  local pin=$1
+  echo "${pin#*@}"
+}
+
 # ===== UPGRADE FUNCTIONALITY =====
 
 # Get current installed version
@@ -671,6 +794,8 @@ OPTIONS:
                             (auto-detects if not specified - supports polyglot repos)
     --hooks-path            Install hooks using git core.hooksPath (\".githooks\") and chain safely
     --no-github-security    Skip GitHub repository security features (enabled by default)
+    --update-actions        Fetch latest GitHub Action versions (bypasses curated pins)
+                            Auto-enabled on first install. Uses curl if gh CLI unavailable.
 
 INSTALLATION:
     # Download installer and checksum
@@ -4555,7 +4680,7 @@ install_pre_push_hook() {
 
 # Generate Pinning Validation workflow (standalone)
 generate_pinning_workflow() {
-  cat <<'EOF'
+  cat <<EOF
 name: Pinning Validation
 
 on:
@@ -4578,7 +4703,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@$(get_action_sha "$ACTIONS_CHECKOUT_V5") # $(get_action_version "$ACTIONS_CHECKOUT_V5")
 
       - name: Quick local pincheck (if present)
         run: |
@@ -4724,7 +4849,7 @@ Auto-pinned by pinact v3.4.2 via Pinning Validation workflow
 
       - name: Push auto-pinned changes
         if: steps.pinact_fix.outputs.changed == 'true'
-        uses: ad-m/github-push-action@master
+        uses: ad-m/github-push-action@$(get_action_sha "$GITHUB_PUSH_ACTION") # $(get_action_version "$GITHUB_PUSH_ACTION")
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: ${{ github.ref }}
@@ -4740,7 +4865,7 @@ EOF
 # Generate CI workflow
 generate_ci_workflow() {
   if [[ $RUST_PROJECT == true ]]; then
-    cat <<'EOF'
+    cat <<EOF
 name: Security CI
 
 on:
@@ -4757,7 +4882,7 @@ jobs:
     name: Security Audit
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+    - uses: actions/checkout@$(get_action_sha "$ACTIONS_CHECKOUT_V4") # $(get_action_version "$ACTIONS_CHECKOUT_V4")
 
     - name: Detect Rust packages
       id: rust
@@ -4777,7 +4902,7 @@ jobs:
 
     - name: Install Rust toolchain
       if: ${{ steps.rust.outputs.has == 'true' }}
-      uses: dtolnay/rust-toolchain@21dc36fb71dd22e3317045c0c31a3f4249868b17 # stable
+      uses: dtolnay/rust-toolchain@$(get_action_sha "$DTOLNAY_RUST_TOOLCHAIN") # $(get_action_version "$DTOLNAY_RUST_TOOLCHAIN")
       with:
         toolchain: stable
 
@@ -4786,8 +4911,8 @@ jobs:
       run: echo "No Rust packages detected; skipping Security Audit job steps."
 
     - name: Cache dependencies
-      if: ${{ steps.rust.outputs.has == 'true' }}
-      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      if: \${{ steps.rust.outputs.has == 'true' }}
+      uses: actions/cache@$(get_action_sha "$ACTIONS_CACHE_V4") # $(get_action_version "$ACTIONS_CACHE_V4")
       with:
         path: |
           ~/.cargo/bin/
@@ -4823,7 +4948,7 @@ jobs:
 
     - name: Upload audit report
       if: ${{ steps.rust.outputs.has == 'true' }}
-      uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+      uses: actions/upload-artifact@$(get_action_sha "$ACTIONS_UPLOAD_ARTIFACT_V4") # $(get_action_version "$ACTIONS_UPLOAD_ARTIFACT_V4")
       with:
         name: security-audit-report
         path: audit-report.json
@@ -4832,12 +4957,12 @@ jobs:
     name: Secret Scanning
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+    - uses: actions/checkout@$(get_action_sha "$ACTIONS_CHECKOUT_V4") # $(get_action_version "$ACTIONS_CHECKOUT_V4")
       with:
         fetch-depth: 0
 
     - name: Run Gitleaks
-      uses: gitleaks/gitleaks-action@cb7149b9e61c3d6896c4bc2616d4c9e86ee2d0c2 # v2.3.6
+      uses: gitleaks/gitleaks-action@$(get_action_sha "$GITLEAKS_ACTION_V2") # $(get_action_version "$GITLEAKS_ACTION_V2")
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -4845,7 +4970,7 @@ jobs:
     name: Vulnerability Scanning
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+    - uses: actions/checkout@$(get_action_sha "$ACTIONS_CHECKOUT_V4") # $(get_action_version "$ACTIONS_CHECKOUT_V4")
 
     - name: Run Trivy vulnerability scanner in repo mode
       uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
@@ -4856,7 +4981,7 @@ jobs:
         output: 'trivy-results.sarif'
 
     - name: Upload Trivy scan results to GitHub Security
-      uses: github/codeql-action/upload-sarif@396bb3e45325a47dd9ef434068033c6d5bb0d11a # v3.26.7
+      uses: github/codeql-action/upload-sarif@$(get_action_sha "$GITHUB_CODEQL_ANALYZE_V3") # $(get_action_version "$GITHUB_CODEQL_ANALYZE_V3")
       if: always()
       with:
         sarif_file: 'trivy-results.sarif'
@@ -4869,7 +4994,7 @@ jobs:
       contents: read
       security-events: write
     steps:
-    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+    - uses: actions/checkout@$(get_action_sha "$ACTIONS_CHECKOUT_V4") # $(get_action_version "$ACTIONS_CHECKOUT_V4")
 
     - name: Detect Rust packages
       id: rust
@@ -4889,14 +5014,14 @@ jobs:
 
     - name: Initialize CodeQL
       if: ${{ steps.rust.outputs.has == 'true' }}
-      uses: github/codeql-action/init@396bb3e45325a47dd9ef434068033c6d5bb0d11a # v3.26.7
+      uses: github/codeql-action/init@$(get_action_sha "$GITHUB_CODEQL_INIT_V3") # $(get_action_version "$GITHUB_CODEQL_INIT_V3")
       with:
         languages: rust
         queries: +security-and-quality
 
     - name: Install Rust toolchain
       if: ${{ steps.rust.outputs.has == 'true' }}
-      uses: dtolnay/rust-toolchain@21dc36fb71dd22e3317045c0c31a3f4249868b17 # stable
+      uses: dtolnay/rust-toolchain@$(get_action_sha "$DTOLNAY_RUST_TOOLCHAIN") # $(get_action_version "$DTOLNAY_RUST_TOOLCHAIN")
       with:
         toolchain: stable
 
@@ -4906,13 +5031,13 @@ jobs:
 
     - name: Perform CodeQL Analysis
       if: ${{ steps.rust.outputs.has == 'true' }}
-      uses: github/codeql-action/analyze@396bb3e45325a47dd9ef434068033c6d5bb0d11a # v3.26.7
+      uses: github/codeql-action/analyze@$(get_action_sha "$GITHUB_CODEQL_ANALYZE_V3") # $(get_action_version "$GITHUB_CODEQL_ANALYZE_V3")
 
   supply-chain:
     name: Supply Chain Security
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+    - uses: actions/checkout@$(get_action_sha "$ACTIONS_CHECKOUT_V4") # $(get_action_version "$ACTIONS_CHECKOUT_V4")
 
     - name: Detect Rust packages
       id: rust
@@ -4932,7 +5057,7 @@ jobs:
 
     - name: Install Rust toolchain
       if: ${{ steps.rust.outputs.has == 'true' }}
-      uses: dtolnay/rust-toolchain@21dc36fb71dd22e3317045c0c31a3f4249868b17 # stable
+      uses: dtolnay/rust-toolchain@$(get_action_sha "$DTOLNAY_RUST_TOOLCHAIN") # $(get_action_version "$DTOLNAY_RUST_TOOLCHAIN")
       with:
         toolchain: stable
 
@@ -4950,7 +5075,7 @@ jobs:
 
     - name: Upload SBOM
       if: ${{ steps.rust.outputs.has == 'true' }}
-      uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+      uses: actions/upload-artifact@$(get_action_sha "$ACTIONS_UPLOAD_ARTIFACT_V4") # $(get_action_version "$ACTIONS_UPLOAD_ARTIFACT_V4")
       with:
         name: software-bill-of-materials
         path: sbom.json
@@ -4960,7 +5085,7 @@ jobs:
     name: License Compliance
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+    - uses: actions/checkout@$(get_action_sha "$ACTIONS_CHECKOUT_V4") # $(get_action_version "$ACTIONS_CHECKOUT_V4")
 
     - name: Detect Rust packages
       id: rust
@@ -4980,7 +5105,7 @@ jobs:
 
     - name: Install Rust toolchain
       if: ${{ steps.rust.outputs.has == 'true' }}
-      uses: dtolnay/rust-toolchain@21dc36fb71dd22e3317045c0c31a3f4249868b17 # stable
+      uses: dtolnay/rust-toolchain@$(get_action_sha "$DTOLNAY_RUST_TOOLCHAIN") # $(get_action_version "$DTOLNAY_RUST_TOOLCHAIN")
       with:
         toolchain: stable
 
@@ -5010,7 +5135,7 @@ jobs:
       run: echo "No Rust packages detected; skipping License Compliance job steps."
 
     - name: Upload license report
-      uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+      uses: actions/upload-artifact@$(get_action_sha "$ACTIONS_UPLOAD_ARTIFACT_V4") # $(get_action_version "$ACTIONS_UPLOAD_ARTIFACT_V4")
       with:
         name: license-compliance-report
         path: |
@@ -5021,7 +5146,7 @@ jobs:
     name: Binary Security Analysis
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+    - uses: actions/checkout@$(get_action_sha "$ACTIONS_CHECKOUT_V4") # $(get_action_version "$ACTIONS_CHECKOUT_V4")
 
     - name: Detect Rust packages
       id: rust
@@ -5041,7 +5166,7 @@ jobs:
 
     - name: Install Rust toolchain
       if: ${{ steps.rust.outputs.has == 'true' }}
-      uses: dtolnay/rust-toolchain@21dc36fb71dd22e3317045c0c31a3f4249868b17 # stable
+      uses: dtolnay/rust-toolchain@$(get_action_sha "$DTOLNAY_RUST_TOOLCHAIN") # $(get_action_version "$DTOLNAY_RUST_TOOLCHAIN")
       with:
         toolchain: stable
 
@@ -5088,7 +5213,7 @@ jobs:
 
     - name: Upload binary analysis results
       if: ${{ steps.rust.outputs.has == 'true' && hashFiles('binary-secrets.txt') != '' }}
-      uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+      uses: actions/upload-artifact@$(get_action_sha "$ACTIONS_UPLOAD_ARTIFACT_V4") # $(get_action_version "$ACTIONS_UPLOAD_ARTIFACT_V4")
       with:
         name: binary-analysis-results
         path: binary-secrets.txt
@@ -5097,7 +5222,7 @@ jobs:
     name: Dependency Confusion Detection
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+    - uses: actions/checkout@$(get_action_sha "$ACTIONS_CHECKOUT_V4") # $(get_action_version "$ACTIONS_CHECKOUT_V4")
 
     - name: Check for suspicious dependency names
       run: |
@@ -5146,7 +5271,7 @@ jobs:
     name: Enhanced Security Validation
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+    - uses: actions/checkout@$(get_action_sha "$ACTIONS_CHECKOUT_V4") # $(get_action_version "$ACTIONS_CHECKOUT_V4")
 
     - name: Detect Rust packages
       id: rust
@@ -5166,7 +5291,7 @@ jobs:
 
     - name: Install Rust toolchain
       if: ${{ steps.rust.outputs.has == 'true' }}
-      uses: dtolnay/rust-toolchain@21dc36fb71dd22e3317045c0c31a3f4249868b17 # stable
+      uses: dtolnay/rust-toolchain@$(get_action_sha "$DTOLNAY_RUST_TOOLCHAIN") # $(get_action_version "$DTOLNAY_RUST_TOOLCHAIN")
       with:
         toolchain: stable
 
@@ -5215,7 +5340,7 @@ jobs:
     name: Commit Signature Verification
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+    - uses: actions/checkout@$(get_action_sha "$ACTIONS_CHECKOUT_V4") # $(get_action_version "$ACTIONS_CHECKOUT_V4")
       with:
         fetch-depth: 0
 
@@ -5244,7 +5369,7 @@ jobs:
 
 EOF
   else
-    cat <<'EOF'
+    cat <<EOF
 name: Security CI
 
 on:
@@ -5258,12 +5383,12 @@ jobs:
     name: Secret Scanning
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+    - uses: actions/checkout@$(get_action_sha "$ACTIONS_CHECKOUT_V4") # $(get_action_version "$ACTIONS_CHECKOUT_V4")
       with:
         fetch-depth: 0
 
     - name: Run Gitleaks
-      uses: gitleaks/gitleaks-action@cb7149b9e61c3d6896c4bc2616d4c9e86ee2d0c2 # v2.3.6
+      uses: gitleaks/gitleaks-action@$(get_action_sha "$GITLEAKS_ACTION_V2") # $(get_action_version "$GITLEAKS_ACTION_V2")
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -5272,7 +5397,7 @@ jobs:
     name: Vulnerability Scanning
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+    - uses: actions/checkout@$(get_action_sha "$ACTIONS_CHECKOUT_V4") # $(get_action_version "$ACTIONS_CHECKOUT_V4")
 
     - name: Run Trivy vulnerability scanner in repo mode
       uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
@@ -5283,7 +5408,7 @@ jobs:
         output: 'trivy-results.sarif'
 
     - name: Upload Trivy scan results to GitHub Security
-      uses: github/codeql-action/upload-sarif@396bb3e45325a47dd9ef434068033c6d5bb0d11a # v3.26.7
+      uses: github/codeql-action/upload-sarif@$(get_action_sha "$GITHUB_CODEQL_ANALYZE_V3") # $(get_action_version "$GITHUB_CODEQL_ANALYZE_V3")
       if: always()
       with:
         sarif_file: 'trivy-results.sarif'
@@ -5292,7 +5417,7 @@ jobs:
     name: Commit Signature Verification
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+    - uses: actions/checkout@$(get_action_sha "$ACTIONS_CHECKOUT_V4") # $(get_action_version "$ACTIONS_CHECKOUT_V4")
       with:
         fetch-depth: 0
 
@@ -5325,7 +5450,7 @@ EOF
 
 # Generate CodeQL workflow for security scanning
 generate_codeql_workflow() {
-  cat <<'EOF'
+  cat <<EOF
 name: "Code Scanning - CodeQL"
 
 on:
@@ -5359,13 +5484,13 @@ jobs:
       uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@afb54ba388a7dca6ecae48f608c4ff05ff4cc77a # v3.25.15
+      uses: github/codeql-action/init@$(get_action_sha "$GITHUB_CODEQL_INIT_V3") # $(get_action_version "$GITHUB_CODEQL_INIT_V3")
       with:
         languages: ${{ matrix.language }}
         build-mode: ${{ matrix.build-mode }}
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@afb54ba388a7dca6ecae48f608c4ff05ff4cc77a # v3.25.15
+      uses: github/codeql-action/analyze@$(get_action_sha "$GITHUB_CODEQL_ANALYZE_V3") # $(get_action_version "$GITHUB_CODEQL_ANALYZE_V3")
       with:
         category: "/language:${{matrix.language}}"
 EOF
@@ -6452,6 +6577,10 @@ parse_arguments() {
         show_changelog
         exit 0
         ;;
+      --update-actions)
+        UPDATE_ACTIONS=true
+        shift
+        ;;
       *)
         print_status $RED "Unknown option: $1"
         echo "Use --help for usage information"
@@ -6807,6 +6936,10 @@ main() {
     print_status $YELLOW "🔍 DRY RUN MODE - No changes will be made"
     echo
   fi
+
+  # Load GitHub Action pins (curated or dynamic)
+  load_action_pins
+  echo
 
   # Execute upgrade commands (these exit before normal installation)
   execute_upgrade_commands

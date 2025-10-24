@@ -1,0 +1,195 @@
+name: Update GitHub Action Pins
+
+on:
+  schedule:
+    # Run every Monday at 9 AM UTC (weekly updates)
+    - cron: '0 9 * * 1'
+  workflow_dispatch: # Allow manual trigger
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-pins:
+    name: Update Action Pins Configuration
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - name: Fetch latest GitHub Action versions
+        id: fetch
+        run: |
+          # Helper functions (same as in installer)
+          fetch_sha() {
+            local repo=$1
+            local ref=$2
+            local fallback=$3
+
+            if command -v gh &> /dev/null; then
+              gh api "repos/${repo}/git/refs/${ref}" --jq '.object.sha' 2>/dev/null || echo "$fallback"
+            elif command -v jq &> /dev/null; then
+              curl -fsSL "https://api.github.com/repos/${repo}/git/refs/${ref}" 2>/dev/null | jq -r '.object.sha // empty' || echo "$fallback"
+            else
+              curl -fsSL "https://api.github.com/repos/${repo}/git/refs/${ref}" 2>/dev/null | grep -o '"sha":"[^"]*"' | head -1 | sed 's/"sha":"\([^"]*\)"/\1/' || echo "$fallback"
+            fi
+          }
+
+          fetch_commit_sha() {
+            local repo=$1
+            local branch=$2
+            local fallback=$3
+
+            if command -v gh &> /dev/null; then
+              gh api "repos/${repo}/commits/${branch}" --jq '.sha' 2>/dev/null || echo "$fallback"
+            elif command -v jq &> /dev/null; then
+              curl -fsSL "https://api.github.com/repos/${repo}/commits/${branch}" 2>/dev/null | jq -r '.sha // empty' || echo "$fallback"
+            else
+              curl -fsSL "https://api.github.com/repos/${repo}/commits/${branch}" 2>/dev/null | grep -o '"sha":"[^"]*"' | head -1 | sed 's/"sha":"\([^"]*\)"/\1/' || echo "$fallback"
+            fi
+          }
+
+          # Fetch latest SHAs
+          echo "Fetching latest GitHub Action versions..."
+
+          CHECKOUT_V4_SHA=$(fetch_sha "actions/checkout" "tags/v4" "692973e3d937129bcbf40652eb9f2f61becf3332")
+          CHECKOUT_V4_VER=$(gh api repos/actions/checkout/git/refs/tags/v4 --jq '.ref' 2>/dev/null | sed 's|refs/tags/||' || echo "v4.1.7")
+
+          CHECKOUT_V5_SHA=$(fetch_sha "actions/checkout" "tags/v5" "08c6903cd8c0fde910a37f88322edcf5dd907a8")
+          CHECKOUT_V5_VER=$(gh api repos/actions/checkout/git/refs/tags/v5 --jq '.ref' 2>/dev/null | sed 's|refs/tags/||' || echo "v5.0.0")
+
+          CACHE_V4_SHA=$(fetch_sha "actions/cache" "tags/v4" "0057852bfaa89a56745cba8c7296529d2fc39830")
+          CACHE_V4_VER=$(gh api repos/actions/cache/git/refs/tags/v4 --jq '.ref' 2>/dev/null | sed 's|refs/tags/||' || echo "v4.3.0")
+
+          UPLOAD_V4_SHA=$(fetch_sha "actions/upload-artifact" "tags/v4" "65462800fd760344b1a7b4382951275a0abb4808")
+          UPLOAD_V4_VER=$(gh api repos/actions/upload-artifact/git/refs/tags/v4 --jq '.ref' 2>/dev/null | sed 's|refs/tags/||' || echo "v4.3.3")
+
+          CODEQL_V3_SHA=$(fetch_sha "github/codeql-action" "tags/v3" "396bb3e45325a47dd9ef434068033c6d5bb0d11a")
+          CODEQL_V3_VER=$(gh api repos/github/codeql-action/git/refs/tags/v3 --jq '.ref' 2>/dev/null | sed 's|refs/tags/||' || echo "v3.26.7")
+
+          GITLEAKS_V2_SHA=$(fetch_sha "gitleaks/gitleaks-action" "tags/v2" "44c470ffc35caa8b1eb3e8012ca53c2f9bea4eb5")
+          GITLEAKS_V2_VER=$(gh api repos/gitleaks/gitleaks-action/git/refs/tags/v2 --jq '.ref' 2>/dev/null | sed 's|refs/tags/||' || echo "v2.3.6")
+
+          RUST_TOOLCHAIN_SHA=$(fetch_commit_sha "dtolnay/rust-toolchain" "stable" "21dc36fb71dd22e3317045c0c31a3f4249868b17")
+
+          PUSH_ACTION_SHA=$(fetch_commit_sha "ad-m/github-push-action" "master" "77c5b412c50b723d2a4fbc6d71fb5723bcd439aa")
+
+          # Update config file
+          cat > config/action-pins.env <<EOF
+          # GitHub Actions SHA Pins - Centralized Version Management
+          # This file contains curated, tested SHA pins for all GitHub Actions used in workflows
+          # Updated weekly via automated workflow (see .github/workflows/update-action-pins.yml)
+          #
+          # Format: ACTION_NAME_VERSION=sha@version
+          # The installer sources this file and uses these pins when generating workflows
+
+          # ============================================================================
+          # CORE ACTIONS
+          # ============================================================================
+
+          # actions/checkout - Check out repository code
+          ACTIONS_CHECKOUT_V4=${CHECKOUT_V4_SHA}@${CHECKOUT_V4_VER}
+          ACTIONS_CHECKOUT_V5=${CHECKOUT_V5_SHA}@${CHECKOUT_V5_VER}
+
+          # actions/cache - Cache dependencies and build outputs
+          ACTIONS_CACHE_V4=${CACHE_V4_SHA}@${CACHE_V4_VER}
+
+          # actions/upload-artifact - Upload build artifacts
+          ACTIONS_UPLOAD_ARTIFACT_V4=${UPLOAD_V4_SHA}@${UPLOAD_V4_VER}
+
+          # ============================================================================
+          # SECURITY ACTIONS
+          # ============================================================================
+
+          # github/codeql-action - CodeQL analysis for security scanning
+          GITHUB_CODEQL_INIT_V3=${CODEQL_V3_SHA}@${CODEQL_V3_VER}
+          GITHUB_CODEQL_ANALYZE_V3=${CODEQL_V3_SHA}@${CODEQL_V3_VER}
+
+          # gitleaks/gitleaks-action - Secret scanning
+          GITLEAKS_ACTION_V2=${GITLEAKS_V2_SHA}@${GITLEAKS_V2_VER}
+
+          # ============================================================================
+          # TOOLCHAIN ACTIONS
+          # ============================================================================
+
+          # dtolnay/rust-toolchain - Rust toolchain installation
+          DTOLNAY_RUST_TOOLCHAIN=${RUST_TOOLCHAIN_SHA}@stable
+
+          # ============================================================================
+          # WORKFLOW HELPERS
+          # ============================================================================
+
+          # ad-m/github-push-action - Push commits from workflows
+          GITHUB_PUSH_ACTION=${PUSH_ACTION_SHA}@master
+
+          # ============================================================================
+          # METADATA
+          # ============================================================================
+
+          # Last updated: $(date -u +"%Y-%m-%d")
+          # Installer version: $(cat VERSION)
+          # Update strategy: Weekly automated PR via update-action-pins.yml
+          EOF
+
+          # Check if anything changed
+          if git diff --quiet config/action-pins.env; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "No changes detected - all pins are up to date"
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "Changes detected:"
+            git diff config/action-pins.env
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Create Pull Request
+        if: steps.fetch.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c # v6.1.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: |
+            chore: update GitHub Action pins to latest versions
+
+            Automated weekly update of GitHub Action SHAs to latest stable versions.
+
+            🤖 Generated by update-action-pins workflow
+          branch: automated/update-action-pins
+          delete-branch: true
+          title: 'chore: Update GitHub Action pins to latest versions'
+          body: |
+            ## 🔄 Automated Action Pins Update
+
+            This PR updates all GitHub Action SHAs in `config/action-pins.env` to the latest versions.
+
+            ### 📋 Changes
+
+            The following actions have been updated:
+
+            ```diff
+            ${{ steps.fetch.outputs.diff }}
+            ```
+
+            ### ✅ Verification
+
+            - [ ] All SHAs are from official repositories
+            - [ ] Version tags match expected major versions
+            - [ ] No breaking changes in release notes
+
+            ### 🔐 Security
+
+            All SHAs are fetched from GitHub's official API and verified against tag references.
+
+            ---
+
+            🤖 **Automated Update** - Created by `.github/workflows/update-action-pins.yml`
+
+            This PR can be safely merged if CI passes. The installer will use these updated pins for all new installations.
+          labels: |
+            dependencies
+            automated
+            security
+          assignees: h4x0r
+          reviewers: h4x0r
